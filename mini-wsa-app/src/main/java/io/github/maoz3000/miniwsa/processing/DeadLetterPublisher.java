@@ -1,14 +1,11 @@
 package io.github.maoz3000.miniwsa.processing;
 
-import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.KafkaTopicsProperties;
-import io.github.maoz3000.miniwsa.config.Role;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.Headers;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.KafkaHeaders;
-import org.springframework.stereotype.Component;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -21,8 +18,6 @@ import java.util.concurrent.ExecutionException;
  * acknowledge them, so the source offsets can safely be committed afterwards.
  */
 @Slf4j
-@Component
-@ConditionalOnRole(Role.PROCESSING)
 public class DeadLetterPublisher {
 
     public static final String REASON_HEADER = "miniwsa-dlt-reason";

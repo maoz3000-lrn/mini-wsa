@@ -2,7 +2,9 @@ package io.github.maoz3000.miniwsa;
 
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.context.annotation.Bean;
+import org.springframework.kafka.config.TopicBuilder;
 import org.testcontainers.clickhouse.ClickHouseContainer;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.kafka.KafkaContainer;
@@ -47,5 +49,15 @@ public class ContainersConfig {
     @ServiceConnection
     ClickHouseContainer clickHouse() {
         return CLICKHOUSE;
+    }
+
+    @Bean
+    NewTopic rawTopic() {
+        return TopicBuilder.name("dlr-raw").partitions(3).build();
+    }
+
+    @Bean
+    NewTopic deadLetterTopic() {
+        return TopicBuilder.name("dlr-raw.DLT").partitions(3).build();
     }
 }

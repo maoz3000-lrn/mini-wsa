@@ -29,6 +29,29 @@ spring:
         max.block.ms: 5000
         # Type info is not needed: consumers bind to IngestedEvent explicitly
         spring.json.add.type.headers: false
+    consumer:
+      group-id: mini-wsa-processing
+      # Without committed offsets start from the oldest retained record (re-processing is idempotent)
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      # Batch size = ClickHouse insert size; larger batches mean fewer, bigger parts
+      max-poll-records: 1000
+      # A batch is handed over when fetch-min-size bytes are available or fetch-max-wait elapses
+      fetch-max-wait: 500ms
+      fetch-min-size: 64KB
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      # Unreadable records surface as null values with the failure in a header, instead of blocking the partition
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
+        spring.json.value.default.type: io.github.maoz3000.miniwsa.domain.IngestedEvent
+        spring.json.use.type.headers: false
+    listener:
+      type: batch
+      # Offsets are committed by the consumer only after storing and dead-lettering the batch
+      ack-mode: manual
+      # Topics are created by infrastructure (kafka-init), never by the application
+      missing-topics-fatal: false
   threads:
     virtual:
       enabled: true
@@ -67,6 +90,14 @@ miniwsa:
     max-future-skew: 5m
     # How long to wait for Kafka acknowledgement before answering 503
     publish-timeout: 5s
+  processing:
+    # Kafka listener threads per instance; useful up to the topic's partition count
+    concurrency: 3
+    # Backoff for transient failures (Redis/ClickHouse/Kafka unavailable); retries never give up
+    retry:
+      initial-interval: 1s
+      multiplier: 2.0
+      max-interval: 60s
   repeat-offender:
     # Look-back window for the repeat-offender bonus, measured in event time
     window: 10m

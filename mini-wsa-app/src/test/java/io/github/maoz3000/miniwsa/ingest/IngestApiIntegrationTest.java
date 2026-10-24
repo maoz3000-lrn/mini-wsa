@@ -45,21 +45,21 @@ class IngestApiIntegrationTest {
 
     @Test
     void publishesAcceptedEventsToKafkaKeyedByEventId() {
+        String eventId = "evt-" + UUID.randomUUID();
         IngestResponse response = client.post().uri("/v1/events/ingest")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(validEventJson())
+                .body(validEventJson().replace("evt-00132", eventId))
                 .exchange()
                 .expectStatus().isCreated()
                 .expectBody(IngestResponse.class)
                 .returnResult().getResponseBody();
 
-        List<ConsumerRecord<String, String>> records = pollTopic("dlr-raw", 1);
+        List<ConsumerRecord<String, String>> records = pollTopic("dlr-raw", eventId);
 
         assertThat(response.accepted()).isEqualTo(1);
         assertThat(records).singleElement().satisfies(r -> {
-            assertThat(r.key()).isEqualTo("evt-00132");
-            assertThat(objectMapper.readValue(r.value(), IngestedEvent.class))
-                    .isEqualTo(new IngestedEvent(validEvent(), response.receivedAt()));
+            assertThat(objectMapper.readValue(r.value(), IngestedEvent.class)).isEqualTo(
+                    new IngestedEvent(validEvent().toBuilder().eventId(eventId).build(), response.receivedAt()));
         });
     }
 
@@ -73,7 +73,7 @@ class IngestApiIntegrationTest {
                 .expectBody().jsonPath("$.errors[0].index").isEqualTo(1);
     }
 
-    private List<ConsumerRecord<String, String>> pollTopic(String topic, int expected) {
+    private List<ConsumerRecord<String, String>> pollTopic(String topic, String key) {
         Map<String, Object> config = Map.of(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, String.join(",", kafka.getBootstrapServers()),
                 ConsumerConfig.GROUP_ID_CONFIG, "test-" + UUID.randomUUID(),
@@ -83,8 +83,12 @@ class IngestApiIntegrationTest {
             consumer.subscribe(List.of(topic));
             List<ConsumerRecord<String, String>> received = new ArrayList<>();
             await().atMost(Duration.ofSeconds(30)).until(() -> {
-                consumer.poll(Duration.ofMillis(200)).forEach(received::add);
-                return received.size() >= expected;
+                consumer.poll(Duration.ofMillis(200)).forEach(r -> {
+                    if (key.equals(r.key())) {
+                        received.add(r);
+                    }
+                });
+                return !received.isEmpty();
             });
             return received;
         }
