@@ -46,5 +46,20 @@ services:
         done
     restart: "no"
 
+  redis:
+    image: redis:8.6.7-alpine
+    # AOF with fsync every second: the repeat-offender window survives short restarts mid-burst
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
 volumes:
   kafka-data:
+  redis-data:
