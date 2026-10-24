@@ -31,19 +31,22 @@ services:
       timeout: 10s
       retries: 24
 
-  # One-off: creates the topics with an explicit partition count (apps never auto-create topics)
+  # One-shot: creates and configures the topics (deploy/kafka-init.sh), then exits. The app starts only after it
+  # completed successfully. Runs again on every `up`, so it is idempotent. Apps never create topics.
   kafka-init:
     image: apache/kafka:4.3.2
     depends_on:
       kafka:
         condition: service_healthy
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        for topic in dlr-raw dlr-raw.DLT; do
-          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists \
-            --topic "$$topic" --partitions ${DLR_TOPIC_PARTITIONS} --replication-factor 1
-        done
+    environment:
+      DLR_TOPIC_PARTITIONS: ${DLR_TOPIC_PARTITIONS}
+      DLR_TOPIC_RETENTION_MS: ${DLR_TOPIC_RETENTION_MS}
+      DLR_TOPIC_RETENTION_BYTES: ${DLR_TOPIC_RETENTION_BYTES}
+      DLT_TOPIC_PARTITIONS: ${DLT_TOPIC_PARTITIONS}
+      DLT_TOPIC_RETENTION_MS: ${DLT_TOPIC_RETENTION_MS}
+    volumes:
+      - ./deploy/kafka-init.sh:/kafka-init.sh:ro
+    entrypoint: ["/bin/sh", "/kafka-init.sh"]
     restart: "no"
 
   # Web UI for browsing topics (dlr-raw, dlr-raw.DLT), messages with headers and consumer lag: http://localhost:8090
