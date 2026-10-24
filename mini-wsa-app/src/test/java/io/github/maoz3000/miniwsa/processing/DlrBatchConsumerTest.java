@@ -7,6 +7,7 @@ import io.github.maoz3000.miniwsa.storage.PermanentStorageException;
 import io.github.maoz3000.miniwsa.storage.RejectedEvent;
 import io.github.maoz3000.miniwsa.storage.SaveResult;
 import io.github.maoz3000.miniwsa.storage.TransientStorageException;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,7 +15,10 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.kafka.support.Acknowledgment;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.Clock;
+import java.time.ZoneOffset;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static io.github.maoz3000.miniwsa.fixtures.DlrEventFixtures.EVENT_TIME;
 import static io.github.maoz3000.miniwsa.fixtures.DlrEventFixtures.validEvent;
@@ -33,7 +37,9 @@ class DlrBatchConsumerTest {
     private final EnrichedEventWriter writer = mock(EnrichedEventWriter.class);
     private final DeadLetterPublisher deadLetters = mock(DeadLetterPublisher.class);
     private final Acknowledgment ack = mock(Acknowledgment.class);
-    private final DlrBatchConsumer consumer = new DlrBatchConsumer(enrichment, writer, deadLetters, JsonMapper.builder().build());
+    private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
+    private final DlrBatchConsumer consumer = new DlrBatchConsumer(enrichment, writer, deadLetters,
+            JsonMapper.builder().build(), new ProcessingMetrics(registry, Clock.fixed(EVENT_TIME.plusSeconds(4), ZoneOffset.UTC)));
 
     private final IngestedEvent first = new IngestedEvent(validEvent().toBuilder().eventId("a").build(), EVENT_TIME);
     private final IngestedEvent second = new IngestedEvent(validEvent().toBuilder().eventId("b").build(), EVENT_TIME);
@@ -56,6 +62,9 @@ class DlrBatchConsumerTest {
 
         verify(deadLetters).publish(List.of());
         verify(ack).acknowledge();
+        assertThat(registry.get("miniwsa.events.stored").counter().count()).isEqualTo(2.0);
+        assertThat(registry.get("miniwsa.processing.lag").timer().totalTime(TimeUnit.SECONDS))
+                .isEqualTo(8.0);
     }
 
     @Test
@@ -69,6 +78,8 @@ class DlrBatchConsumerTest {
                         DeadLetter::sourceOffset)
                 .containsExactly("b", DeadLetterReason.ROW_VALIDATION, "bad row", 2, 20L));
         verify(ack).acknowledge();
+        assertThat(registry.get("miniwsa.events.stored").counter().count()).isEqualTo(1.0);
+        assertThat(registry.get("miniwsa.dead.letters").tag("reason", "ROW_VALIDATION").counter().count()).isEqualTo(1.0);
     }
 
     @Test

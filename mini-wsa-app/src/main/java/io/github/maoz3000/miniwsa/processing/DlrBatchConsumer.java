@@ -17,10 +17,12 @@ import org.springframework.kafka.support.serializer.SerializationUtils;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -42,13 +44,16 @@ public class DlrBatchConsumer {
     private final EnrichedEventWriter writer;
     private final DeadLetterPublisher deadLetterPublisher;
     private final ObjectMapper objectMapper;
+    private final ProcessingMetrics metrics;
 
     public DlrBatchConsumer(EnrichmentService enrichmentService, EnrichedEventWriter writer,
-                            DeadLetterPublisher deadLetterPublisher, ObjectMapper objectMapper) {
+                            DeadLetterPublisher deadLetterPublisher, ObjectMapper objectMapper,
+                            ProcessingMetrics metrics) {
         this.enrichmentService = enrichmentService;
         this.writer = writer;
         this.deadLetterPublisher = deadLetterPublisher;
         this.objectMapper = objectMapper;
+        this.metrics = metrics;
     }
 
     @KafkaListener(id = "dlr-processing", topics = "${miniwsa.kafka.topic}", batch = "true",
@@ -65,8 +70,10 @@ public class DlrBatchConsumer {
         List<EnrichedEvent> enriched = enrichmentService.enrich(List.copyOf(sources.keySet()));
         List<DeadLetter> unstored = store(enriched, sources);
 
-        deadLetterPublisher.publish(Stream.concat(unreadable.stream(), unstored.stream()).toList());
+        List<DeadLetter> deadLetters = Stream.concat(unreadable.stream(), unstored.stream()).toList();
+        deadLetterPublisher.publish(deadLetters);
         acknowledgment.acknowledge();
+        metrics.recordDeadLetters(deadLetters);
         log.debug("Processed batch of {} records ({} dead-lettered)", records.size(), unreadable.size() + unstored.size());
     }
 
@@ -77,6 +84,7 @@ public class DlrBatchConsumer {
         }
         try {
             SaveResult result = writer.saveAll(enriched);
+            metrics.recordStored(stored(enriched, result));
             return result.rejected().stream()
                     .map(r -> deadLetter(sources.get(r.event().ingested()), DeadLetterReason.ROW_VALIDATION, r.reason()))
                     .toList();
@@ -87,6 +95,12 @@ public class DlrBatchConsumer {
                     .map(ev -> deadLetter(sources.get(ev.ingested()), DeadLetterReason.STORAGE_REJECTED, e.getMessage()))
                     .toList();
         }
+    }
+
+    private static List<EnrichedEvent> stored(List<EnrichedEvent> enriched, SaveResult result) {
+        Set<EnrichedEvent> rejected = Collections.newSetFromMap(new IdentityHashMap<>());
+        result.rejected().forEach(r -> rejected.add(r.event()));
+        return enriched.stream().filter(e -> !rejected.contains(e)).toList();
     }
 
     private DeadLetter deadLetter(ConsumerRecord<String, IngestedEvent> source, DeadLetterReason reason, String error) {
