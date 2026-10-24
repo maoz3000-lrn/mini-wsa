@@ -1,0 +1,86 @@
+# Production-like layout: the same image runs as three role-specific services behind an nginx gateway.
+#   docker compose -f docker-compose.yml -f docker-compose.split.yml up -d --build
+# Clients still use one URL (http://localhost:${APP_PORT}); nginx routes by path.
+
+x-role-service: &role-service
+  build:
+    context: .
+    dockerfile: mini-wsa-app/Dockerfile
+  image: mini-wsa-app:latest
+  stop_grace_period: 30s
+  depends_on:
+    kafka-init:
+      condition: service_completed_successfully
+    redis:
+      condition: service_healthy
+    clickhouse:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/actuator/health"]
+    interval: 5s
+    timeout: 3s
+    retries: 30
+    start_period: 20s
+
+x-app-env: &app-env
+  KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+  REDIS_HOST: redis
+  CLICKHOUSE_HOST: clickhouse
+  CLICKHOUSE_DB: ${CLICKHOUSE_DB}
+  CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+  CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+  JAVA_OPTS: ${JAVA_OPTS}
+
+services:
+  # The all-in-one service is not started in this layout
+  app:
+    profiles: ["single"]
+
+  ingest:
+    <<: *role-service
+    environment:
+      <<: *app-env
+      MINIWSA_ROLES: ingest
+    deploy:
+      replicas: ${INGEST_REPLICAS}
+
+  # One Kafka consumer group: replicas x concurrency (3) should not exceed the partitions (6)
+  processing:
+    <<: *role-service
+    environment:
+      <<: *app-env
+      MINIWSA_ROLES: processing
+    deploy:
+      replicas: ${PROCESSING_REPLICAS}
+
+  analytics:
+    <<: *role-service
+    environment:
+      <<: *app-env
+      MINIWSA_ROLES: analytics
+    deploy:
+      replicas: ${ANALYTICS_REPLICAS}
+
+  gateway:
+    image: nginx:1.30.6-alpine
+    ports:
+      - "${APP_PORT}:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      ingest:
+        condition: service_healthy
+      analytics:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  generator:
+    environment:
+      INGEST_URL: http://gateway
+    depends_on: !override
+      gateway:
+        condition: service_healthy
