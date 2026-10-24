@@ -1,6 +1,22 @@
 spring:
   application:
     name: mini-wsa
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      # Wait for all in-sync replicas: a 201 means the batch is durably stored
+      acks: all
+      compression-type: lz4
+      properties:
+        enable.idempotence: true
+        # Small batching window for throughput; adds at most 5ms to ingest latency
+        linger.ms: 5
+        # Fail fast instead of blocking request threads when the broker is unreachable
+        max.block.ms: 5000
+        # Type info is not needed: consumers bind to IngestedEvent explicitly
+        spring.json.add.type.headers: false
   threads:
     virtual:
       enabled: true
@@ -21,6 +37,12 @@ management:
 miniwsa:
   # Parts of the pipeline this process runs: ingest, processing, analytics (override with MINIWSA_ROLES)
   roles: ingest, processing, analytics
+  kafka:
+    topic: dlr-raw
+    dlt-topic: dlr-raw.DLT
+  api:
+    # Retry-After header value on 503 responses
+    retry-after: 5s
   ingest:
     # Requests larger than this are rejected with 413 before the body is parsed
     max-body-size: 5MB
@@ -28,3 +50,5 @@ miniwsa:
     max-batch-size: 1000
     # Reject events whose timestamp is further ahead of server time than this
     max-future-skew: 5m
+    # How long to wait for Kafka acknowledgement before answering 503
+    publish-timeout: 5s

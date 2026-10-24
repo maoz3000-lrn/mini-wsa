@@ -20,7 +20,7 @@ class IngestPayloadParserTest {
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
     private final IngestPayloadParser parser = new IngestPayloadParser(
-            new IngestProperties(DataSize.ofMegabytes(5), 2, Duration.ofMinutes(5)));
+            new IngestProperties(DataSize.ofMegabytes(5), 2, Duration.ofMinutes(5), Duration.ofSeconds(5)));
 
     @Test
     void wrapsSingleObjectInBatchOfOne() {

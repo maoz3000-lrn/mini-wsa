@@ -1,5 +1,6 @@
 package io.github.maoz3000.miniwsa.api;
 
+import io.github.maoz3000.miniwsa.ingest.EventPublishException;
 import io.github.maoz3000.miniwsa.ingest.EventValidationException;
 import io.github.maoz3000.miniwsa.ingest.PayloadTooLargeException;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     static final String ERRORS_PROPERTY = "errors";
     static final String INTERNAL_ERROR_DETAIL = "Unexpected server error";
     static final String MALFORMED_JSON_DETAIL = "request body is not valid JSON";
+    static final String UNAVAILABLE_DETAIL = "Service temporarily unavailable; retry later";
+
+    private final ApiProperties properties;
+
+    public GlobalExceptionHandler(ApiProperties properties) {
+        this.properties = properties;
+    }
 
     @ExceptionHandler(EventValidationException.class)
     ProblemDetail handleValidation(EventValidationException e) {
@@ -38,6 +46,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     ProblemDetail handleTooLarge(PayloadTooLargeException e) {
         log.warn("Rejected oversized ingest request: {}", e.getMessage());
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE, e.getMessage());
+    }
+
+    @ExceptionHandler(EventPublishException.class)
+    ResponseEntity<ProblemDetail> handlePublishFailure(EventPublishException e) {
+        log.error("Ingest batch not acknowledged by Kafka", e);
+        return serviceUnavailable();
+    }
+
+    private ResponseEntity<ProblemDetail> serviceUnavailable() {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(properties.retryAfter().toSeconds()))
+                .body(ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, UNAVAILABLE_DETAIL));
     }
 
     @Override
