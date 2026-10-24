@@ -23,7 +23,7 @@ final class ClickHouseTestSupport {
             CLICKHOUSE.start();
             dataSource = new SimpleDriverDataSource(new com.clickhouse.jdbc.Driver(),
                     CLICKHOUSE.getJdbcUrl(), CLICKHOUSE.getUsername(), CLICKHOUSE.getPassword());
-            new SchemaInitializer(dataSource, new ClickHouseProperties(true)).afterPropertiesSet();
+            new SchemaInitializer(dataSource, ClickHouseProperties.initOnce()).afterPropertiesSet();
         }
         return dataSource;
     }

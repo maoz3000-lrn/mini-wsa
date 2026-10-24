@@ -78,6 +78,9 @@ miniwsa:
   clickhouse:
     # Create the dlr_events table on startup if missing (idempotent)
     init-schema: true
+    # Startup waits for ClickHouse to become reachable (DNS, connection refused) for up to retries x interval
+    init-retries: 10
+    init-retry-interval: 3s
   analytics:
     # EXACT: duplicates (Kafka re-delivery, client retries) are removed at read time (ClickHouse FINAL; ~1.2-2x read cost)
     # BEST_EFFORT: faster; counts may be briefly inflated until background merges remove duplicates
