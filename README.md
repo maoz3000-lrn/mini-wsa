@@ -17,6 +17,7 @@ GET  /v1/events/samples ◄─────────────────�
 3. [Storage choice](#storage-choice-clickhouse)
 4. [Build, test and run](#build-test-and-run)
 5. [API reference](#api-reference)
+6. [Operations guide](#operations-guide)
 
 ## Quick start
 
@@ -379,3 +380,117 @@ Caveats:
 - On later pages, `total` counts events up to the cursor's `to`. Keep the total from the first page.
 - A *late* event carrying exactly the boundary millisecond, arriving between two page requests, can still shift the tied events by one.
 - Deep offsets stay cheap: `offset` only ever counts the tied events, not everything before the page.
+
+## Operations guide
+
+### Consistency model
+- **201 means "durably accepted", not "queryable yet".** After the 201, an event still goes through the consumer, Redis and the ClickHouse insert. Normally that takes well under 2 s (measured: p99 below 1 s on a laptop). During bursts the consumers fall behind, and the delay grows until they catch up. Kafka holds the data meanwhile; nothing is dropped.
+- **Watching the delay.** `/actuator/metrics/miniwsa.processing.lag` measures the time from ingestion to storage. `kafka.consumer.fetch.manager.records.lag.max` is the number of records not yet consumed. `miniwsa.delivery.lag` measures how late events reach us (`receivedAt − timestamp`).
+- **Within one stats response**, `totalEvents`, `byCategory` and `byAction` come from a single read and always add up. The top-10 lists are separate parallel queries, so they may include events stored a few milliseconds later.
+- Tests never sleep; they poll until data shows up (Awaitility).
+
+**Consumer settings** (`spring.kafka.consumer.*`, overridable via environment variables). A batch is handed to processing when it is full **or** when the wait expires, whichever comes first:
+
+| Setting | Default | Effect |
+|---|---|---|
+| `max-poll-records` | 1000 | Batch size, which is also the ClickHouse INSERT size. Larger batches mean fewer, bigger ClickHouse parts (cheaper merges) and more work redone after a crash. |
+| `fetch-max-wait` | 500ms | Longest a quiet partition waits to fill a batch. This caps the delay when traffic is light. |
+| `fetch-min-size` | 64KB | Bytes the broker gathers before answering early. Higher values give bigger batches under load. |
+| `miniwsa.processing.concurrency` | 3 | Consumer threads per instance. Useful up to the number of partitions (6 in compose). |
+
+Alternative profiles:
+- **Low latency:** `max-poll-records=500`, `fetch-max-wait=100ms`. Events are visible faster, at the cost of more and smaller inserts.
+- **High throughput:** `max-poll-records=5000`, `fetch-max-wait=2s`. Fewer, larger inserts that ClickHouse handles very well; events take a few seconds longer to appear.
+
+### Query accuracy: `miniwsa.analytics.accuracy`
+Kafka delivers at least once: a crash or rebalance between the INSERT and the offset commit, or a client retrying after a lost 201, stores an event twice. `ReplacingMergeTree` removes the duplicate during background merges, but those happen later.
+
+| Value | Behaviour |
+|---|---|
+| `EXACT` (default) | Reads use `FINAL` (with `do_not_merge_across_partitions_select_final=1`), so duplicates are removed at read time. Results are always exact; reads cost about 1.2–2× more. |
+| `BEST_EFFORT` | No `FINAL`. Faster, but counts can be inflated briefly after crashes, rebalances or client retries, until merges catch up. |
+
+This is a deployment setting (`MINIWSA_ANALYTICS_ACCURACY`), not an API parameter. Example: an investigation instance can run `EXACT` while a high-traffic wall dashboard runs `BEST_EFFORT`. In testing, re-consuming a whole topic from a new consumer group left 18,091 raw rows; `EXACT` returned exactly the 15,309 unique events.
+
+### Roles and split deployment
+`miniwsa.roles` decides what a process runs. It binds to an enum, so a typo or an empty value fails at startup.
+
+| Role | Runs | Needs |
+|---|---|---|
+| `ingest` | `POST /v1/events/ingest`, size filter, Kafka producer | Kafka |
+| `processing` | Kafka listener, enrichment, Redis window, ClickHouse writer, dead-letter publisher | Kafka, Redis, ClickHouse |
+| `analytics` | Stats and samples endpoints | ClickHouse |
+
+The default compose runs one container with all roles. `docker-compose.split.yml` runs the same image as separate services behind an nginx gateway that routes by path, so clients still see one URL:
+```bash
+docker compose -f docker-compose.yml -f docker-compose.split.yml up -d --build --wait
+docker compose -f docker-compose.yml -f docker-compose.split.yml run --rm generator --count 10000
+```
+- **Replica counts** come from `.env`: `INGEST_REPLICAS=3`, `PROCESSING_REPLICAS=2`, `ANALYTICS_REPLICAS=1`.
+- **Processing replicas** share one consumer group, so Kafka spreads the 6 partitions over 2 replicas × 3 threads. More threads than partitions would sit idle.
+- **The gateway** re-resolves service names every 5 s, so recreated or scaled replicas are picked up.
+- **Why separate roles:** the write path is high-volume and must never stall, while heavy dashboard queries cost memory and garbage-collection pauses. Separate processes keep one from starving the other. The whole split layout needs about 5–6 GB of RAM.
+
+### Dead-letter topic: `dlr-raw.DLT`
+Processing never blocks a partition on a bad record. It sorts failures into two kinds:
+
+| Failure | Handling |
+|---|---|
+| Record cannot be deserialized | Sent to the DLT with reason `DESERIALIZATION`, original bytes kept |
+| Event fails the checks run before the insert (values that would not fit their columns) | Only that event goes to the DLT with reason `ROW_VALIDATION`; the rest of the batch is stored |
+| ClickHouse rejects the whole batch for data reasons (known error codes only) | Whole batch to the DLT with reason `STORAGE_REJECTED`; ERROR log plus metric |
+| Anything else: Redis, ClickHouse or Kafka down, timeouts, unknown errors | Not data's fault: the whole batch is retried with exponential backoff (1 s → 60 s), forever. Kafka holds the data and lag grows; nothing goes to the DLT. |
+
+Dead letters carry these headers: `miniwsa-dlt-reason`, `kafka_dlt-exception-message`, `kafka_dlt-original-topic`, `kafka_dlt-original-partition` and `kafka_dlt-original-offset`. The counter `miniwsa.dead.letters{reason}` counts them.
+
+```bash
+# inspect
+docker compose exec kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 \
+  --topic dlr-raw.DLT --from-beginning --property print.key=true --property print.headers=true
+
+# replay after fixing the cause (values are the original event JSON; processing is idempotent)
+docker compose exec kafka sh -c '/opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 \
+  --topic dlr-raw.DLT --from-beginning --timeout-ms 5000 --property print.key=true --property key.separator="	" \
+  | /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server localhost:9092 --topic dlr-raw \
+    --property parse.key=true --property key.separator="	"'
+```
+
+### Data and restarts
+Each component keeps its data in a named volume:
+- **ClickHouse:** `clickhouse-data` holds the events.
+- **Kafka:** `kafka-data` holds the topics and the committed consumer offsets (`__consumer_offsets`). The KRaft `CLUSTER_ID` is fixed in `.env`, because the broker refuses to start on existing data with a different id.
+- **Redis:** `redis-data` holds the window, with AOF and fsync every second. A short restart in the middle of a burst does not lose recent history. The keys expire after 15 minutes anyway.
+- **App containers and nginx** hold no state.
+
+| Command | Result |
+|---|---|
+| `docker compose stop` then `start` | Everything kept |
+| `docker compose down` then `up` | Everything kept (named volumes) |
+| `docker compose down -v` | Full reset: events, topics, offsets and window deleted |
+
+Shutdown is graceful: in-flight HTTP requests finish, the consumer completes and commits its current batch, and `stop_grace_period` is 30 s. Even a hard kill loses nothing that got a 201: unfinished batches are simply delivered again.
+
+### Configuration
+All settings are in [`application.yml`](mini-wsa-app/src/main/resources/application.yml), with comments, and can be overridden by environment variables, e.g. `miniwsa.ingest.max-batch-size` → `MINIWSA_INGEST_MAXBATCHSIZE`. Invalid values fail at startup.
+
+| Setting | Default | Purpose |
+|---|---|---|
+| `miniwsa.roles` | `ingest, processing, analytics` | Components this process runs |
+| `miniwsa.kafka.topic` / `dlt-topic` | `dlr-raw` / `dlr-raw.DLT` | Topics (created by `kafka-init`, never by the app) |
+| `miniwsa.ingest.max-body-size` | 5MB | Larger bodies get 413 before parsing |
+| `miniwsa.ingest.max-batch-size` | 1000 | More events get 413 |
+| `miniwsa.ingest.max-future-skew` | 5m | Rejects event timestamps further in the future than this |
+| `miniwsa.ingest.publish-timeout` | 5s | Wait for Kafka acks before answering 503 |
+| `miniwsa.api.retry-after` | 5s | `Retry-After` header on 503 |
+| `miniwsa.processing.concurrency` | 3 | Listener threads per instance |
+| `miniwsa.processing.retry.*` | 1s × 2.0, max 60s | Backoff for transient failures (unlimited retries) |
+| `miniwsa.repeat-offender.window` | 10m | Look-back window (event time) |
+| `miniwsa.repeat-offender.min-prior-events` | 6 | Earlier events needed for +15 ("more than 5") |
+| `miniwsa.repeat-offender.max-entries` | 6 | Entries kept per IP; must be ≥ min-prior-events. Raise to tolerate more out-of-order events |
+| `miniwsa.repeat-offender.allowed-lateness` | 5m | Grace for late events; key TTL = window + lateness |
+| `miniwsa.clickhouse.init-schema` | true | Create the table on startup (idempotent) |
+| `miniwsa.analytics.accuracy` | EXACT | `EXACT` / `BEST_EFFORT` |
+| `miniwsa.analytics.query-timeout` | 30s | ClickHouse `max_execution_time` per query |
+| `spring.kafka.*`, `spring.datasource.*`, `spring.data.redis.*` | see file | Connections; env shortcuts `KAFKA_BOOTSTRAP_SERVERS`, `CLICKHOUSE_HOST/PORT/DB/USER/PASSWORD`, `REDIS_HOST/PORT` |
+
+Deliberately **not** configurable, because they are the assignment's contract: score points, the +15 bonuses, the `/admin` and `/login` markers, the 100 cap, attack-type labels, the samples limit (default 20, max 100), and the top-10 size.
