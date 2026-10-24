@@ -18,6 +18,10 @@ GET  /v1/events/samples ◄─────────────────�
 4. [Build, test and run](#build-test-and-run)
 5. [API reference](#api-reference)
 6. [Operations guide](#operations-guide)
+7. [Design decisions and trade-offs](#design-decisions-and-trade-offs)
+8. [Challenges and how they were solved](#challenges-and-how-they-were-solved)
+9. [Future improvements](#future-improvements)
+10. [Project history](#project-history)
 
 ## Quick start
 
@@ -494,3 +498,98 @@ All settings are in [`application.yml`](mini-wsa-app/src/main/resources/applicat
 | `spring.kafka.*`, `spring.datasource.*`, `spring.data.redis.*` | see file | Connections; env shortcuts `KAFKA_BOOTSTRAP_SERVERS`, `CLICKHOUSE_HOST/PORT/DB/USER/PASSWORD`, `REDIS_HOST/PORT` |
 
 Deliberately **not** configurable, because they are the assignment's contract: score points, the +15 bonuses, the `/admin` and `/login` markers, the 100 cap, attack-type labels, the samples limit (default 20, max 100), and the top-10 size.
+
+## Design decisions and trade-offs
+
+### Repeat-offender bonus
+**Meaning.** An event gets +15 when **at least 6 earlier events** ("more than 5") of the same `clientIp` fall in **[timestamp − 10 min, timestamp]**, measured in **event time**.
+
+Event time rather than `receivedAt` because:
+- The rule describes the attacker's pace. The edge batches and delays DLRs, so arrival time does not reflect it.
+- Replaying or backfilling historical data must score the same as live data. With `receivedAt`, the generator's one-hour dataset, posted in seconds, would make every active IP a repeat offender.
+- Results are reproducible: the same data always gives the same scores.
+- It matches the timeline analysts see.
+
+`receivedAt` is still stored. It measures delivery delay, serves as an audit trail, and decides which copy survives deduplication.
+
+**Mechanism.** Each client IP has a Redis sorted set: member = `eventId`, score = event time. For every event, one Lua script runs atomically:
+1. `ZADD` the event.
+2. `ZCOUNT` the range [ts − 10m, ts] and subtract 1 (the event itself).
+3. Trim the set to the newest 6 entries.
+4. `PEXPIRE` the key (window + 5 min grace).
+
+All scripts of a batch go in one pipelined round trip.
+- **Atomic** because consumers run in parallel. With a separate read and write, two consumers both read a stale window, and a 30-event wave spread over 6 partitions could earn zero bonuses.
+- **`ZCOUNT` up to `ts`, never `ZCARD`**, so a later event can never count toward an earlier one.
+- **The member is the `eventId`**, so re-processing a batch is a no-op. Redis can therefore be updated before ClickHouse, with no "update Redis only after the insert" coordination.
+- **Memory is bounded:** at most 6 entries per IP (about 300 bytes), expiring 15 minutes after the IP goes quiet.
+
+**Known limitations.** Errors only ever drop a deserved bonus; the window never grants an undeserved one.
+1. **Reordering at the threshold.** Events are keyed by `eventId`, so one IP's burst is spread over partitions and consumer threads. If the 7th event is scored a few milliseconds before some of its predecessors (being processed on another thread), it misses its bonus; later events are unaffected. In a manual run, 8 events posted in one request scored `75 ×7, 90` instead of `75 ×6, 90, 90`. Keying by `clientIp` would preserve per-IP order but turn every attacking IP into a hot partition, so this trade-off was accepted.
+2. **Very late events.** An event arriving behind more than `max-entries` newer events of its IP, or after the grace period, may also miss the bonus. Raising `max-entries` widens the tolerance cheaply.
+
+An in-JVM "known offender" cache from the original design was dropped. Being an offender at time T does not mean being one at T+60 s, and skipping Redis would also skip recording the event.
+
+### Scoring details
+- **Maximum reachable score is 90:** CRITICAL 40 + DENY 20 + path 15 + repeat 15. The 100 cap is kept for future rules and tested on its own.
+- **Path rule:** case-insensitive substring match on the raw path, +15 once even when both markers appear.
+  - Matches: `/admin/users`, `/ADMIN/config.php`, `/administrator`, `/api/v1/login`
+  - Does not match: `/wp-login.php` (it contains `-login`, not `/login`), or percent-encoded paths such as `/%61dmin`. Paths are not URL-decoded; tests pin this behaviour.
+
+### Ingest
+- **All-or-nothing validation** gives clients one clear answer per request and keeps invalid data out of Kafka.
+- **201 only after Kafka acknowledged every record**, which costs a few milliseconds. A fire-and-forget design would answer in under a millisecond, but a crash or broker outage would lose batches already confirmed with 201. It would not even stay fast, since `send()` blocks once the producer buffer is full. Waiting is cheap on virtual threads.
+- **A 503 after a partial publish** makes the client resend the whole batch. The already-published events become duplicates, which deduplication removes.
+
+### Queries
+- **Stats** run three queries in parallel: the `GROUPING SETS` counts, top attackers and top paths.
+- **Samples** run the page query and the `count()` in parallel.
+- **The ClickHouse specifics stay in the `storage` package:** `FINAL`, query settings, and the UTC conversion of time bounds.
+
+## Challenges and how they were solved
+1. **Correct repeat-offender counts with parallel consumers.** A read-then-write window undercounts badly during exactly the bursts it targets. Solved with one atomic Lua script per event, eventId members for idempotency, and `ZCOUNT` bounded at the event's own timestamp.
+2. **Exact numbers on an at-least-once pipeline.** Kafka can deliver a batch twice. Solved with `ReplacingMergeTree` plus the `EXACT`/`BEST_EFFORT` read setting. Verified by re-consuming a whole topic: 18,091 raw rows, and exactly 15,309 unique events returned.
+3. **Bad records without blocking or losing data.** Sending to the DLT after N retries would dump good data there during a ClickHouse outage. Instead, failures are sorted into two kinds:
+   - Each row is checked before the insert, so only the offending event is dead-lettered.
+   - Only known "bad data" ClickHouse error codes count as permanent; everything else is retried indefinitely.
+   - Dead letters are published after the insert, so retry loops cannot flood the DLT.
+4. **Stable pagination without changing the API.** `to` + `offset` act as a keyset cursor, with a server-computed `Link` header.
+5. **A timezone bug.** Binding `java.sql.Timestamp` made the driver render JVM-local time, shifting every time filter by the local offset (+3 h here). Time bounds are now bound as explicit UTC text and converted with `toDateTime64(…, 3, 'UTC')`. A millisecond-boundary test caught it.
+6. **A silent consumer-group override.** The `@KafkaListener` id replaced the configured `group-id`. Found while checking partition assignment in the split deployment; fixed with `idIsGroup = false`.
+7. **Stale routing in the gateway.** nginx resolved replica IPs once at startup. After the role containers were recreated, an ingest request was answered with 404 by an analytics container. Fixed with Docker DNS re-resolution (`server … resolve`).
+8. **Spring Boot 4 / Jackson 3.** New package names (`tools.jackson`), Jackson-3 Kafka serializers, modular starters and test slices (`RestTestClient`, relocated `@WebMvcTest`).
+
+## Future improvements
+- **Timestamp-ordered projection.**
+  - *Problem:* `/v1/events/samples` without `configId` cannot read rows in time order, because the table is sorted by configuration first. ClickHouse scans the timestamp column of the whole time range and keeps the newest N.
+  - *Solution:* `ALTER TABLE dlr_events ADD PROJECTION by_time (SELECT * ORDER BY timestamp)`. ClickHouse keeps a second, time-sorted copy and the optimizer uses it automatically for such queries.
+  - *Cost:* about 2× storage, slower inserts and merges, more disk I/O. Worth it only if all-configuration sample queries matter.
+- **Pre-aggregated statistics:** `AggregatingMergeTree` materialized views per (configuration, minute, category, action). Long-range stats would then read thousands of rows instead of millions, at the cost of more tables and approximate (`topK`) top-N lists.
+- **Fully consistent stats responses:** an `inserted_at` column, with all three stats queries limited to rows inserted before `now − lag` (a watermark).
+- **Repeat-offender window:**
+  - group a batch's events per IP into one script call, and use `EVALSHA` to stop resending the script
+  - re-score late events
+  - salted per-IP partitioning to remove threshold reordering without creating hot partitions
+- **Path normalization** (URL decoding, dot-segments) before scoring, to catch encoding-based evasion.
+- **Schema evolution:** Avro or Protobuf with a schema registry instead of JSON on Kafka.
+- **Security:** mTLS for edge ingestion, OAuth for analysts, rate limiting on the analytics API.
+- **Retention:** TTL on `dlr_events` (e.g. 90 days) and dropping old partitions.
+- **Production topology:**
+  - 3 Kafka brokers with replication factor 3 and `min.insync.replicas=2`
+  - replicated and sharded ClickHouse (`Distributed` table)
+  - Redis Sentinel or Cluster (each script touches one key, so it is cluster-safe)
+- **Observability:** Prometheus registry, dashboards and alerts on consumer lag, processing lag and dead-letter rate.
+- **Bonus challenges** (not implemented): time series would be one `toStartOfInterval` query; alerting and rate limiting would reuse the analytics reader and Redis.
+
+## Project history
+Built incrementally, with one tag per milestone (`git log --oneline --decorate`):
+
+| Tag | Scope |
+|---|---|
+| `v0.1-ingestion` | Domain model, validation, limits, roles, durable Kafka publishing, `POST /v1/events/ingest` |
+| `v0.2-enrichment` | Attack type, threat score, atomic Redis repeat-offender window |
+| `v0.3-storage` | ClickHouse schema and writer, batch consumer, failure classification, dead-letter topic, metrics |
+| `v0.4-stats` | `GET /v1/stats/summary` |
+| `v0.5-samples` | `GET /v1/events/samples` with cursor paging |
+| `v0.6-generator` | Traffic generator with attack waves; split deployment behind nginx |
+| `v1.0-release` | End-to-end test, documentation |
