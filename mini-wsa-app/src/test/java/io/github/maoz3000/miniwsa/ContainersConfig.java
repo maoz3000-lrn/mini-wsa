@@ -3,6 +3,7 @@ package io.github.maoz3000.miniwsa;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.config.TopicConfig;
 import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.config.TopicBuilder;
 import org.testcontainers.clickhouse.ClickHouseContainer;
@@ -51,13 +52,21 @@ public class ContainersConfig {
         return CLICKHOUSE;
     }
 
+    // Mirrors deploy/kafka-init.sh (fewer raw partitions to keep tests light)
     @Bean
     NewTopic rawTopic() {
-        return TopicBuilder.name("dlr-raw").partitions(3).build();
+        return TopicBuilder.name("dlr-raw").partitions(3)
+                .config(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_DELETE)
+                .config(TopicConfig.RETENTION_MS_CONFIG, "604800000")
+                .config(TopicConfig.RETENTION_BYTES_CONFIG, "1073741824")
+                .build();
     }
 
     @Bean
     NewTopic deadLetterTopic() {
-        return TopicBuilder.name("dlr-raw.DLT").partitions(3).build();
+        return TopicBuilder.name("dlr-raw.DLT").partitions(1)
+                .config(TopicConfig.CLEANUP_POLICY_CONFIG, TopicConfig.CLEANUP_POLICY_DELETE)
+                .config(TopicConfig.RETENTION_MS_CONFIG, "2592000000")
+                .build();
     }
 }
