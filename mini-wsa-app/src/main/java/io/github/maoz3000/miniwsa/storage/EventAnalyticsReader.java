@@ -1,7 +1,9 @@
 package io.github.maoz3000.miniwsa.storage;
 
+import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
 import io.github.maoz3000.miniwsa.domain.query.AttackerStats;
 import io.github.maoz3000.miniwsa.domain.query.EventFilter;
+import io.github.maoz3000.miniwsa.domain.query.PageRequest;
 import io.github.maoz3000.miniwsa.domain.query.PathStats;
 import io.github.maoz3000.miniwsa.domain.query.SummaryCounts;
 
@@ -22,4 +24,10 @@ public interface EventAnalyticsReader {
 
     /** Paths by event count desc (ties by path asc), at most {@code limit}. */
     List<PathStats> topTargetedPaths(EventFilter filter, int limit);
+
+    /** Matching events, newest first (event timestamp desc, ties by eventId desc). */
+    List<EnrichedEvent> findSamples(EventFilter filter, PageRequest page);
+
+    /** Number of matching events. */
+    long countEvents(EventFilter filter);
 }

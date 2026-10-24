@@ -7,6 +7,7 @@ import io.github.maoz3000.miniwsa.domain.RuleCategory;
 import io.github.maoz3000.miniwsa.domain.query.AttackerStats;
 import io.github.maoz3000.miniwsa.domain.query.CategoryStats;
 import io.github.maoz3000.miniwsa.domain.query.EventFilter;
+import io.github.maoz3000.miniwsa.domain.query.PageRequest;
 import io.github.maoz3000.miniwsa.domain.query.PathStats;
 import io.github.maoz3000.miniwsa.domain.query.SummaryCounts;
 import org.junit.jupiter.api.AfterEach;
@@ -22,6 +23,7 @@ import java.util.Map;
 
 import static io.github.maoz3000.miniwsa.fixtures.DlrEventFixtures.validEvent;
 import static io.github.maoz3000.miniwsa.fixtures.EnrichedEventFixtures.enriched;
+import static io.github.maoz3000.miniwsa.fixtures.EnrichedEventFixtures.enrichedExample;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ClickHouseEventAnalyticsReaderTest {
@@ -90,6 +92,52 @@ class ClickHouseEventAnalyticsReaderTest {
     void ranksPathsByCountThenPath() {
         assertThat(reader.topTargetedPaths(EventFilter.builder().configId(1L).build(), 10)).containsExactly(
                 new PathStats("/login", 2), new PathStats("/admin", 1), new PathStats("/home", 1));
+    }
+
+    @Test
+    void returnsSamplesNewestFirstWithPagination() {
+        assertThat(reader.findSamples(EventFilter.unfiltered(), new PageRequest(2, 1)))
+                .extracting(e -> e.event().eventId()).containsExactly("e4", "e3");
+        assertThat(reader.countEvents(EventFilter.unfiltered())).isEqualTo(5);
+    }
+
+    @Test
+    void filtersSamplesByCategoryAndAction() {
+        EventFilter filter = EventFilter.builder().category(RuleCategory.INJECTION).action(Action.DENY).configId(1L).build();
+
+        assertThat(reader.findSamples(filter, new PageRequest(10, 0)))
+                .extracting(e -> e.event().eventId()).containsExactly("e2", "e1");
+        assertThat(reader.countEvents(filter)).isEqualTo(2);
+    }
+
+    @Test
+    void breaksTimestampTiesByEventIdDescending() {
+        writer.saveAll(List.of(
+                event("tie-a", 3L, "10.0.0.1", "/x", RuleCategory.DOS, Action.DENY, T0, 50),
+                event("tie-b", 3L, "10.0.0.1", "/x", RuleCategory.DOS, Action.DENY, T0, 50)));
+
+        assertThat(reader.findSamples(EventFilter.builder().configId(3L).build(), new PageRequest(10, 0)))
+                .extracting(e -> e.event().eventId()).containsExactly("tie-b", "tie-a");
+    }
+
+    @Test
+    void readsBackEveryStoredField() {
+        EnrichedEvent example = enrichedExample();
+        writer.saveAll(List.of(example));
+
+        assertThat(reader.findSamples(EventFilter.builder().configId(example.event().configId()).build(),
+                new PageRequest(1, 0))).containsExactly(example);
+    }
+
+    @Test
+    void readsBackMissingOptionalFieldsAsNull() {
+        EnrichedEvent minimal = enriched(validEvent().toBuilder().eventId("minimal").configId(4L)
+                .userAgent(null).geoLocation(null).requestSize(null).responseSize(null)
+                .rule(validEvent().rule().toBuilder().message(null).build()).build(), 60);
+        writer.saveAll(List.of(minimal));
+
+        assertThat(reader.findSamples(EventFilter.builder().configId(4L).build(), new PageRequest(1, 0)))
+                .containsExactly(minimal);
     }
 
     @Test

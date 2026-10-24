@@ -3,10 +3,12 @@ package io.github.maoz3000.miniwsa.storage;
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;
 import io.github.maoz3000.miniwsa.domain.Action;
+import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
 import io.github.maoz3000.miniwsa.domain.RuleCategory;
 import io.github.maoz3000.miniwsa.domain.query.AttackerStats;
 import io.github.maoz3000.miniwsa.domain.query.CategoryStats;
 import io.github.maoz3000.miniwsa.domain.query.EventFilter;
+import io.github.maoz3000.miniwsa.domain.query.PageRequest;
 import io.github.maoz3000.miniwsa.domain.query.PathStats;
 import io.github.maoz3000.miniwsa.domain.query.SummaryCounts;
 import org.springframework.dao.DataAccessException;
@@ -88,6 +90,30 @@ public class ClickHouseEventAnalyticsReader implements EventAnalyticsReader {
                 .paramSource(withLimit(sql, limit))
                 .query((rs, n) -> new PathStats(rs.getString("path"), rs.getLong("cnt")))
                 .list());
+    }
+
+    @Override
+    public List<EnrichedEvent> findSamples(EventFilter filter, PageRequest page) {
+        ClickHouseFilterSql sql = ClickHouseFilterSql.of(filter, properties);
+        return read(() -> jdbc.sql("""
+                        SELECT %s
+                        FROM %s%s
+                        ORDER BY timestamp DESC, event_id DESC
+                        LIMIT :limit OFFSET :offset
+                        %s
+                        """.formatted(ClickHouseSampleRows.SELECT_LIST, sql.source(), sql.where(), sql.settings()))
+                .paramSource(withLimit(sql, page.limit()).addValue("offset", page.offset()))
+                .query((rs, n) -> ClickHouseSampleRows.toEnrichedEvent(rs))
+                .list());
+    }
+
+    @Override
+    public long countEvents(EventFilter filter) {
+        ClickHouseFilterSql sql = ClickHouseFilterSql.of(filter, properties);
+        return read(() -> jdbc.sql("SELECT count() FROM %s%s%s".formatted(sql.source(), sql.where(), sql.settings()))
+                .paramSource(sql.parameters())
+                .query(Long.class)
+                .single());
     }
 
     private static MapSqlParameterSource withLimit(ClickHouseFilterSql sql, int limit) {
