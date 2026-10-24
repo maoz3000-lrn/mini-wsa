@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.util.unit.DataSize;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -31,7 +32,7 @@ class IngestEventValidatorTest {
             MAPPER,
             Validation.buildDefaultValidatorFactory().getValidator(),
             Clock.fixed(EVENT_TIME, ZoneOffset.UTC),
-            new IngestProperties(Duration.ofMinutes(5)));
+            new IngestProperties(DataSize.ofMegabytes(5), 1000, Duration.ofMinutes(5)));
 
     @Test
     void bindsValidEvents() {

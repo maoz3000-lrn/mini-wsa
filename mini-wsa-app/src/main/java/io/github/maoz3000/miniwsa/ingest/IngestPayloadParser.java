@@ -10,6 +10,7 @@ import java.util.stream.IntStream;
 
 /**
  * Normalises the ingest body: a single JSON object becomes a batch of one, an array is a batch.
+ * Enforces the batch size limit and the shape of each element.
  */
 @Component
 @ConditionalOnRole(Role.INGEST)
@@ -19,11 +20,21 @@ public class IngestPayloadParser {
     static final String EMPTY_BATCH = "request body must contain at least one event";
     static final String NOT_AN_OBJECT = "event must be a JSON object";
 
+    private final IngestProperties properties;
+
+    public IngestPayloadParser(IngestProperties properties) {
+        this.properties = properties;
+    }
+
     public List<JsonNode> toBatch(JsonNode body) {
         if (body == null || !(body.isObject() || body.isArray())) {
             throw new EventValidationException(List.of(EventError.ofRequest(NOT_OBJECT_OR_ARRAY)));
         }
         List<JsonNode> batch = body.isObject() ? List.of(body) : body.valueStream().toList();
+        if (batch.size() > properties.maxBatchSize()) {
+            throw new PayloadTooLargeException("batch of " + batch.size() + " events exceeds the limit of "
+                    + properties.maxBatchSize() + "; split it into smaller requests");
+        }
         if (batch.isEmpty()) {
             throw new EventValidationException(List.of(EventError.ofRequest(EMPTY_BATCH)));
         }

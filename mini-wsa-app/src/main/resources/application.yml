@@ -22,5 +22,9 @@ miniwsa:
   # Parts of the pipeline this process runs: ingest, processing, analytics (override with MINIWSA_ROLES)
   roles: ingest, processing, analytics
   ingest:
+    # Requests larger than this are rejected with 413 before the body is parsed
+    max-body-size: 5MB
+    # Batches with more events than this are rejected with 413
+    max-batch-size: 1000
     # Reject events whose timestamp is further ahead of server time than this
     max-future-skew: 5m
