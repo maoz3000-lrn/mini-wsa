@@ -17,3 +17,7 @@ management:
     web:
       exposure:
         include: health, info, metrics
+
+miniwsa:
+  # Parts of the pipeline this process runs: ingest, processing, analytics (override with MINIWSA_ROLES)
+  roles: ingest, processing, analytics
