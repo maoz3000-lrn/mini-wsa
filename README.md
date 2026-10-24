@@ -16,6 +16,7 @@ GET  /v1/events/samples ◄─────────────────�
 2. [Architecture](#architecture)
 3. [Storage choice](#storage-choice-clickhouse)
 4. [Build, test and run](#build-test-and-run)
+5. [API reference](#api-reference)
 
 ## Quick start
 
@@ -173,3 +174,208 @@ A fixed `--seed` reproduces the same data. `--out` writes `batch-NNNNN.json` fil
 | `--seed` | random | Reproducible output |
 | `--concurrency` | 4 | Parallel POSTs |
 | `--out` | (none) | Write files instead of POSTing |
+
+## API reference
+
+Base URL: `http://localhost:8080`. Errors use [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details (`application/problem+json`).
+
+| Status | When |
+|---|---|
+| 201 | Ingest batch durably accepted (Kafka acknowledged every event) |
+| 200 | Stats / samples |
+| 400 | Invalid JSON, invalid event(s) (batch rejected, itemized `errors`), invalid query parameters, `from` after `to` |
+| 413 | Body over 5 MB (checked before parsing) or more than 1000 events |
+| 503 | Kafka (ingest) or ClickHouse (analytics) unavailable; retry after the `Retry-After` seconds |
+
+### `POST /v1/events/ingest`
+Accepts one event object or an array of up to 1000 events. Everything is validated before anything is published, and one invalid event rejects the whole batch. On success every event gets the same server-side `receivedAt`.
+
+```bash
+curl -i -X POST localhost:8080/v1/events/ingest -H 'Content-Type: application/json' -d '{
+  "eventId": "evt-00132",
+  "timestamp": "2026-05-20T14:32:10Z",
+  "configId": 14227,
+  "policyId": "pol_web1",
+  "clientIp": "203.0.113.42",
+  "hostname": "www.example.com",
+  "path": "/api/v1/login",
+  "method": "POST",
+  "statusCode": 403,
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+  "rule": {"id": "950001", "name": "SQL_INJECTION", "message": "SQL Injection Attack Detected",
+           "severity": "CRITICAL", "category": "INJECTION"},
+  "action": "DENY",
+  "geoLocation": {"country": "CN", "city": "Beijing"},
+  "requestSize": 1024,
+  "responseSize": 256
+}'
+```
+```http
+HTTP/1.1 201
+{"accepted":1,"receivedAt":"2026-10-24T13:05:11.204Z"}
+```
+For a batch, send a JSON array of such objects, or a file written by the generator: `curl ... -d @build/events/batch-00001.json`.
+
+**Validation rules**
+
+| Field(s) | Rule |
+|---|---|
+| `eventId`, `policyId`, `clientIp`, `hostname`, `path`, `method`, `rule.id`, `rule.name` | Required, non-blank, with length limits |
+| `timestamp` | Required, ISO-8601 instant, at most 5 minutes ahead of server time (`miniwsa.ingest.max-future-skew`) |
+| `configId` | Required, positive |
+| `clientIp` | IPv4 dotted quad or IPv6 literal |
+| `statusCode` | Required, 100–599 |
+| `rule.severity` | `CRITICAL`, `HIGH`, `MEDIUM`, `LOW` |
+| `rule.category` | `INJECTION`, `XSS`, `PROTOCOL_VIOLATION`, `DATA_LEAKAGE`, `BOT`, `DOS`, `RATE_LIMIT` |
+| `action` | `DENY`, `ALERT`, `MONITOR` |
+| `userAgent`, `rule.message`, `geoLocation`, `requestSize`, `responseSize` | Optional; sizes must not be negative |
+
+Unknown fields are ignored. For each event, every constraint violation is reported. A value that cannot be parsed at all (wrong type, unknown enum value, malformed timestamp) is reported as the first such problem of that event.
+
+```bash
+# second event has an unknown category
+curl -s -X POST localhost:8080/v1/events/ingest -H 'Content-Type: application/json' -d '[{...valid...}, {...,"rule":{...,"category":"SQLI"}}]'
+```
+```json
+{
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "1 validation error(s); batch rejected",
+  "instance": "/v1/events/ingest",
+  "errors": [
+    {"index": 1, "field": "rule.category",
+     "message": "must be one of [INJECTION, XSS, PROTOCOL_VIOLATION, DATA_LEAKAGE, BOT, DOS, RATE_LIMIT]"}
+  ]
+}
+```
+```json
+{"title": "Content Too Large", "status": 413, "instance": "/v1/events/ingest",
+ "detail": "batch of 1001 events exceeds the limit of 1000; split it into smaller requests"}
+```
+
+**Enrichment** (applied by processing):
+- `attackType` is a label per category:
+
+  | Category | Attack type |
+  |---|---|
+  | INJECTION | SQL/Command Injection |
+  | XSS | Cross-Site Scripting |
+  | PROTOCOL_VIOLATION | Protocol Anomaly |
+  | DATA_LEAKAGE | Data Exfiltration |
+  | BOT | Bot Activity |
+  | DOS | Denial of Service |
+  | RATE_LIMIT | Rate Limiting |
+
+- `threatScore` is the sum of the following, capped at 100:
+  - severity: CRITICAL 40, HIGH 30, MEDIUM 20, LOW 10
+  - action: DENY 20, ALERT 10, MONITOR 0
+  - +15 if the path contains `/admin` or `/login`
+  - +15 if more than 5 earlier events from the same `clientIp` fall in the 10 minutes before the event
+
+  See [Scoring details](#scoring-details) for the exact rules.
+
+### `GET /v1/stats/summary?configId=&from=&to=`
+All parameters are optional. `from`/`to` are inclusive ISO-8601 instants and filter on the event `timestamp`. Without `configId`, statistics cover all configurations.
+
+```bash
+curl -s 'localhost:8080/v1/stats/summary?configId=14227&from=2026-05-20T00:00:00Z&to=2026-05-21T00:00:00Z'
+```
+```json
+{
+  "configId": 14227,
+  "timeRange": {"from": "2026-05-20T00:00:00Z", "to": "2026-05-21T00:00:00Z"},
+  "totalEvents": 1523,
+  "byCategory": {
+    "INJECTION": {"count": 450, "avgThreatScore": 72.3},
+    "XSS": {"count": 213, "avgThreatScore": 51.0},
+    "PROTOCOL_VIOLATION": {"count": 0, "avgThreatScore": 0.0},
+    "...": "..."
+  },
+  "byAction": {"DENY": 890, "ALERT": 433, "MONITOR": 200},
+  "topAttackers": [{"clientIp": "203.0.113.42", "count": 87, "avgThreatScore": 81.2}],
+  "topTargetedPaths": [{"path": "/api/v1/login", "count": 234}]
+}
+```
+- `byCategory` and `byAction` always list every category and action, zero-filled, and always add up to `totalEvents`: all three come from one `GROUPING SETS` query.
+- `topAttackers` and `topTargetedPaths` hold the top 10 by event count, ties broken by IP or path ascending, so results are stable.
+- Averages are rounded to one decimal.
+
+### `GET /v1/events/samples?configId=&from=&to=&category=&action=&limit=&offset=`
+Returns individual enriched events, newest first (event `timestamp` descending, ties by `eventId` descending). All filters are optional; `limit` defaults to 20 (1–100) and `offset` to 0. Each event has the original DLR fields plus `receivedAt`, `attackType` and `threatScore`.
+
+```bash
+curl -si 'localhost:8080/v1/events/samples?configId=14227&category=INJECTION&action=DENY&limit=2'
+```
+```http
+HTTP/1.1 200
+Link: <http://localhost:8080/v1/events/samples?configId=14227&category=INJECTION&action=DENY&limit=2&to=2026-05-20T14:32:09Z&offset=1>; rel="next"
+
+{
+  "total": 450,
+  "limit": 2,
+  "offset": 0,
+  "events": [
+    {"eventId": "evt-00133", "timestamp": "2026-05-20T14:32:11Z", "configId": 14227, "...": "...",
+     "receivedAt": "2026-05-20T14:32:13.020Z", "attackType": "SQL/Command Injection", "threatScore": 90},
+    {"eventId": "evt-00132", "timestamp": "2026-05-20T14:32:09Z", "configId": 14227, "...": "...",
+     "receivedAt": "2026-05-20T14:32:12.511Z", "attackType": "SQL/Command Injection", "threatScore": 75}
+  ]
+}
+```
+`total` counts every event matching the filters, regardless of `limit`/`offset`.
+
+#### Paging while events keep arriving: the `Link` header
+
+Results are newest first and new events arrive all the time, so plain offset paging shifts between requests (5 new events arrive → page 2 repeats 5 events of page 1). The fix needs no new parameter: **`to` and `offset` together act as a cursor**, and every page except the last carries a `Link: <…>; rel="next"` header with the correct next request. Clients just follow it. Clients that do their own offset paging should at least pin `to` on the first request.
+
+Worked example with `limit=5`, using this data sorted the way the server sorts it:
+
+| # | timestamp | eventId |
+|---|---|---|
+| 1 | 10:00:07.000 | evt-120 |
+| 2 | 10:00:06.500 | evt-119 |
+| 3 | 10:00:05.120 | evt-118 |
+| 4 | 10:00:05.120 | evt-117 |
+| 5 | 10:00:05.120 | evt-116 |
+| 6 | 10:00:05.120 | evt-115 |
+| 7 | 10:00:04.900 | evt-114 |
+| 8 | 10:00:03.000 | evt-113 |
+
+Four events share `10:00:05.120` (common in attack bursts), and the page boundary falls in the middle of them.
+
+**Page 1.** The client sends `GET /v1/events/samples?limit=5`. The server runs
+`… ORDER BY timestamp DESC, event_id DESC LIMIT 5 OFFSET 0` and returns rows 1–5. It computes the cursor from the page itself:
+- `to` = timestamp of the last returned event = `10:00:05.120`
+- `offset` = how many returned events have that same timestamp: evt-118, evt-117 and evt-116 = **3**
+
+```
+Link: </v1/events/samples?limit=5&to=2026-05-20T10:00:05.120Z&offset=3>; rel="next"
+```
+
+**Meanwhile** `evt-121` arrives with timestamp `10:00:08.000`, which would be the new row 1.
+
+**Page 2.** The client follows the link. `to` is inclusive, so the server runs
+`… WHERE timestamp <= '10:00:05.120' ORDER BY timestamp DESC, event_id DESC LIMIT 5 OFFSET 3`:
+```
+evt-118, evt-117, evt-116,   evt-115, evt-114, evt-113, …
+└─ skipped (offset 3) ─┘     └─ returned ─────────────
+```
+Page 2 starts exactly where page 1 ended: nothing repeated, nothing skipped. `evt-121` is newer than `to`, so it cannot shift anything. With naive `offset=5` the client would get `evt-116` again, a duplicate.
+
+**When a whole page shares the timestamp**, the skip count adds up. Say 12 events share `10:00:05.120`: page 2 (`to=…05.120, offset=3`) returns 5 more of them, so page 3 must skip 3 + 5:
+```
+next.to     = timestamp of the last event on this page
+next.offset = (next.to == current.to ? current.offset : 0) + events on this page with timestamp == next.to
+```
+That gives page 3 `to=…05.120&offset=8`. The server applies this rule when it builds the `Link` header, so clients never need to.
+
+| | Client | Server |
+|---|---|---|
+| First page | `GET …?limit=20` (+ filters) | Query with the tie-break order; return page, `total` and `Link: rel="next"` |
+| Next pages | Follow the `Link` URL as-is | Same query; the inclusive `to` acts as the cursor, `offset` skips ties already sent |
+| Last page | No `Link` header: done | `Link` omitted when the page has fewer than `limit` events |
+
+Caveats:
+- On later pages, `total` counts events up to the cursor's `to`. Keep the total from the first page.
+- A *late* event carrying exactly the boundary millisecond, arriving between two page requests, can still shift the tied events by one.
+- Deep offsets stay cheap: `offset` only ever counts the tied events, not everything before the page.
