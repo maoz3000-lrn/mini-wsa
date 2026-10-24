@@ -29,7 +29,7 @@ GET  /v1/events/samples ◄─────────────────�
 Requires Docker with Compose v2.
 
 ```bash
-docker compose up -d --build --wait                 # Kafka, Redis, ClickHouse, Kafka UI and the app on :8080
+docker compose up -d --build --wait                 # Kafka, Redis, ClickHouse, the two UIs and the app on :8080
 docker compose run --rm generator --count 10000     # 10k events, 30% in attack waves
 curl -s localhost:8080/v1/stats/summary | jq
 curl -s 'localhost:8080/v1/events/samples?category=INJECTION&limit=5' | jq
@@ -40,6 +40,8 @@ curl -s 'localhost:8080/v1/events/samples?category=INJECTION&limit=5' | jq
 | Swagger UI: interactive API docs with "Try it out" | http://localhost:8080/swagger-ui.html |
 | OpenAPI spec (JSON) | http://localhost:8080/v3/api-docs |
 | Kafka UI: topics, messages with headers, consumer lag | http://localhost:8090 |
+| CH-UI: ClickHouse table browser and SQL editor (log in as `miniwsa` / `miniwsa`) | http://localhost:3488 |
+| ClickHouse built-in SQL console / server dashboard (same credentials) | http://localhost:8123/play · http://localhost:8123/dashboard |
 
 If port 8080 is busy, run `APP_PORT=18080 docker compose up -d --build --wait` and use that port.
 
@@ -450,6 +452,47 @@ docker compose -f docker-compose.yml -f docker-compose.split.yml run --rm genera
 
 It is a local development tool with no authentication; don't expose it beyond your machine.
 
+### Inspecting ClickHouse
+Three consoles; all log in with `CLICKHOUSE_USER` / `CLICKHOUSE_PASSWORD` from `.env` (`miniwsa` / `miniwsa`):
+
+| Console | URL | Good for |
+|---|---|---|
+| [CH-UI](https://github.com/caioricciuti/ch-ui) (`ghcr.io/caioricciuti/ch-ui`) | http://localhost:3488 | Browsing the `miniwsa` database and `dlr_events` schema, writing queries with history and saved queries. Started by default (`CLICKHOUSE_UI_PORT` in `.env`). Some extras (alerts, performance monitor) need a CH-UI Pro license; browsing and querying are free. |
+| ClickHouse Play (built in) | http://localhost:8123/play | Quick one-off SQL in the browser, nothing extra to run |
+| ClickHouse dashboard (built in) | http://localhost:8123/dashboard | Live server charts: queries/s, inserts, merges, memory, CPU |
+
+Like Kafka UI, these are local development tools; don't expose them beyond your machine.
+
+Useful queries (run in any console):
+```sql
+-- Duplicates waiting for a background merge (what miniwsa.analytics.accuracy=EXACT hides)
+SELECT (SELECT count() FROM dlr_events) AS stored_rows,
+       (SELECT count() FROM dlr_events FINAL) AS unique_events,
+       stored_rows - unique_events AS pending_duplicates;
+
+-- Daily partitions and their parts (many small parts = inserts too small or merges falling behind)
+SELECT partition, count() AS active_parts, sum(rows) AS rows, formatReadableSize(sum(bytes_on_disk)) AS on_disk
+FROM system.parts WHERE database = 'miniwsa' AND table = 'dlr_events' AND active
+GROUP BY partition ORDER BY partition;
+
+-- Merges running right now
+SELECT partition_id, round(elapsed, 1) AS seconds, round(progress * 100) AS pct, num_parts
+FROM system.merges WHERE database = 'miniwsa';
+
+-- Slowest queries and inserts of the last hour
+SELECT event_time, query_duration_ms AS ms, read_rows, formatReadableSize(memory_usage) AS memory,
+       substring(query, 1, 80) AS query
+FROM system.query_log
+WHERE type = 'QueryFinish' AND has(databases, 'miniwsa') AND event_time > now() - INTERVAL 1 HOUR
+ORDER BY query_duration_ms DESC LIMIT 10;
+
+-- Storage footprint and compression
+SELECT sum(rows) AS rows, formatReadableSize(sum(data_uncompressed_bytes)) AS raw,
+       formatReadableSize(sum(data_compressed_bytes)) AS compressed,
+       round(sum(data_uncompressed_bytes) / sum(data_compressed_bytes), 1) AS ratio
+FROM system.parts WHERE database = 'miniwsa' AND table = 'dlr_events' AND active;
+```
+
 ### Dead-letter topic: `dlr-raw.DLT`
 Processing never blocks a partition on a bad record. It sorts failures into two kinds:
 
@@ -612,7 +655,7 @@ That message wraps the real cause; look further down the log for `Caused by:`.
 
 **`Bind for 0.0.0.0:8080 failed: port is already allocated`**
 
-Another process uses the port. Run with `APP_PORT=18080 docker compose up -d --build --wait` (and `KAFKA_UI_PORT=...` for 8090).
+Another process uses the port. Run with `APP_PORT=18080 docker compose up -d --build --wait`. The UIs have their own overrides: `KAFKA_UI_PORT` (8090) and `CLICKHOUSE_UI_PORT` (3488).
 
 **Events accepted (201) but not visible in stats yet**
 
