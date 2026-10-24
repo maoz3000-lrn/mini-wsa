@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: mini-wsa
+  threads:
+    virtual:
+      enabled: true
+  lifecycle:
+    # Graceful shutdown budget per phase (compose stop_grace_period is 30s)
+    timeout-per-shutdown-phase: 25s
+
+server:
+  port: ${APP_PORT:8080}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
