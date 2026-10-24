@@ -1,5 +1,7 @@
 package io.github.maoz3000.miniwsa.ingest;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 /**
  * One problem found in an ingest request.
  *
@@ -7,6 +9,7 @@ package io.github.maoz3000.miniwsa.ingest;
  * @param field   dotted path of the offending field, or {@code null} when not field-specific
  * @param message what is wrong
  */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record EventError(Integer index, String field, String message) {
 
     public static EventError ofRequest(String message) {

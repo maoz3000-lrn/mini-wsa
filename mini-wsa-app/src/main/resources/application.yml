@@ -21,3 +21,6 @@ management:
 miniwsa:
   # Parts of the pipeline this process runs: ingest, processing, analytics (override with MINIWSA_ROLES)
   roles: ingest, processing, analytics
+  ingest:
+    # Reject events whose timestamp is further ahead of server time than this
+    max-future-skew: 5m
