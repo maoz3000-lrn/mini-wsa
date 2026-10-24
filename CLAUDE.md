@@ -1,8 +1,8 @@
 ## 🏗️ Architecture & Component Design
-- **Layered Architecture:** Maintain explicit strict separation across `controller` (Web/REST), `service` (Business Logic), `repository` (Persistence/Data), and `model`/`entity` (JPA Domain).
+- **Layered Architecture:** Maintain explicit strict separation across `controller` (Web/REST), `service` (Business Logic), `repository` (Persistence/Data), and `domain` (immutable records).
 - **Thin Controllers:** Controllers must exclusively map HTTP requests, invoke services, and return responses. No business logic or direct persistence interaction.
-- **Data Transfer Objects:** Never expose raw JPA `@Entity` classes in controller methods. Use immutable Java `record` types for all request/response DTOs.
-- **Persistence Rules:** Use Spring Data JPA repositories strictly for database access. Always apply `@Transactional` boundaries at the Service layer, not the Controller or Repository level.
+- **Data Transfer Objects:** Never expose domain or persistence objects directly in controller methods. Use immutable Java `record` types for all request/response DTOs.
+- **Persistence Rules:** The store is ClickHouse (append-only, columnar, no multi-statement transactions), so JPA/Hibernate is not used. Access data only through repository interfaces named by capability (e.g. `EnrichedEventWriter`, `EventAnalyticsReader`), implemented with Spring `JdbcClient`/`NamedParameterJdbcTemplate` (e.g. `ClickHouseEnrichedEventWriter`). Keep all SQL and ClickHouse-specific settings inside those implementations. Write in large batches (one INSERT per consumer batch). Do not use `@Transactional` with ClickHouse; consistency comes from idempotent writes (ReplacingMergeTree) and Kafka offset commits.
 
 ## Code Style & Guidelines
 * **Code Formatting:** Follow standard Java conventions (4 spaces for indentation, camelCase for variables/methods, PascalCase for classes).
