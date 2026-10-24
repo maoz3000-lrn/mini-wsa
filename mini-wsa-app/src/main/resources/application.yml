@@ -78,6 +78,12 @@ miniwsa:
   clickhouse:
     # Create the dlr_events table on startup if missing (idempotent)
     init-schema: true
+  analytics:
+    # EXACT: duplicates (Kafka re-delivery, client retries) are removed at read time (ClickHouse FINAL; ~1.2-2x read cost)
+    # BEST_EFFORT: faster; counts may be briefly inflated until background merges remove duplicates
+    accuracy: EXACT
+    # Server-side execution limit per analytics query (ClickHouse max_execution_time)
+    query-timeout: 30s
   api:
     # Retry-After header value on 503 responses
     retry-after: 5s
