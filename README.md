@@ -444,6 +444,35 @@ docker compose -f docker-compose.yml -f docker-compose.split.yml run --rm genera
 - **The gateway** re-resolves service names every 5 s, so recreated or scaled replicas are picked up.
 - **Why separate roles:** the write path is high-volume and must never stall, while heavy dashboard queries cost memory and garbage-collection pauses. Separate processes keep one from starving the other. The whole split layout needs about 5–6 GB of RAM.
 
+### Kafka topics
+
+| Topic | Partitions | Replication | Retention | Cleanup | Purpose |
+|---|---|---|---|---|---|
+| `dlr-raw` | 6 (`DLR_TOPIC_PARTITIONS`) | 1 (single broker) | 7 days, capped at 1 GiB per partition | delete | Buffer between ingest and processing, and replay source |
+| `dlr-raw.DLT` | 1 (`DLT_TOPIC_PARTITIONS`) | 1 | 30 days, no size cap | delete | Records processing could not store, kept for inspection and replay |
+
+**Who creates them: `kafka-init`.** This is a one-shot Compose service: a regular container from the same `apache/kafka` image whose entrypoint runs [`deploy/kafka-init.sh`](deploy/kafka-init.sh) (Kafka's CLI tools) and then exits.
+- Compose starts it once `kafka` is healthy (`depends_on: service_healthy`).
+- The app starts only after it exited successfully (`service_completed_successfully`).
+- It runs again on every `docker compose up`, so the script is idempotent. Each run creates missing topics, re-applies retention and cleanup settings, and raises partition counts that were increased in `.env`. Kafka cannot decrease partitions, so a lower value only logs a warning until the topic is recreated (`docker compose down -v`).
+- The broker has topic auto-creation disabled, and the app never creates topics: topics are a contract between ingest and processing, and their size is a capacity decision.
+- In production the same step would be a Kubernetes Job or init container, a Strimzi `KafkaTopic` resource, or Terraform.
+
+**Partitions.** The `dlr-raw` partition count caps processing parallelism: 6 = 2 processing replicas × 3 consumer threads. Records are keyed by `eventId` only to spread the load, and nothing relies on per-key ordering, so partitions can be added later without breaking anything. For production, size it as max(target throughput ÷ throughput per consumer, number of consumers), e.g. 12–24, with replication factor 3 and `min.insync.replicas=2`, so `acks=all` survives a broker loss. The DLT has 1 partition: it is low volume and keeps dead letters in order.
+
+**Retention.** ClickHouse is the system of record; Kafka is a buffer and a replay source.
+- **`dlr-raw`:** 7 days covers a long consumer outage, or re-processing after a bug fix, and matches how long Kafka keeps idle consumer-group offsets. The size cap stops an attack flood from filling the disk. Kafka deletes whole log segments (1 GiB by default), so the actual size can briefly exceed the cap.
+- **DLT:** 30 days, because a person has to look at dead letters.
+
+**No compaction.** Compaction keeps only the latest record per key. Our keys are unique `eventId`s, so compaction would remove nothing, the topic would grow forever, and the cleaner would still cost I/O. This is an event stream, not a "latest state per key" topic. Compaction would fit state topics, e.g. rule configuration or per-IP window state, which this design keeps in code and Redis.
+
+**Duplicates are removed in ClickHouse, not Kafka.** A client resending a batch, or a consumer re-reading after a crash, produces duplicate records. Kafka has no way to drop them:
+- Compaction runs later, in the background, and consumers have already read both copies by then.
+- The idempotent producer only removes duplicates from its own internal retries.
+- Transactions make a batch all-or-nothing, but do not recognise a resent batch.
+
+`ReplacingMergeTree` plus `FINAL` reads make results exact regardless (see [Query accuracy](#query-accuracy-miniwsaanalyticsaccuracy)). Removing duplicates earlier at ingest is listed under [Future improvements](#future-improvements).
+
 ### Kafka UI
 [Kafka UI](https://github.com/kafbat/kafka-ui) (`kafbat/kafka-ui`) runs at **http://localhost:8090** (`KAFKA_UI_PORT` in `.env`) and is started by default. It shows:
 - **Topics:** `dlr-raw` (6 partitions) and `dlr-raw.DLT`, with message keys (eventId), JSON values and headers. The dead-letter reason and origin are visible per message.
@@ -631,6 +660,9 @@ An in-JVM "known offender" cache from the original design was dropped. Being an 
   - re-score late events
   - salted per-IP partitioning to remove threshold reordering without creating hot partitions
 - **Path normalization** (URL decoding, dot-segments) before scoring, to catch encoding-based evasion.
+- **Remove duplicates before Kafka** (saves work and storage; ClickHouse already makes results exact):
+  - *Per request:* key a request by a hash of its body, or by an optional `Idempotency-Key` header. Store the key in Redis for e.g. 24 h, only after Kafka acknowledged the batch, so a failed publish is retried rather than lost. A repeat gets the original 201 without publishing.
+  - *Per event:* reserve each `eventId` with Redis `SET NX` before publishing and confirm it after the ack. This also catches batches that only partly overlap, at the cost of one key per event, plus care so a crash between reserving and publishing cannot make a retry skip the event.
 - **Schema evolution:** Avro or Protobuf with a schema registry instead of JSON on Kafka.
 - **Security:** mTLS for edge ingestion, OAuth for analysts, rate limiting on the analytics API.
 - **Retention:** TTL on `dlr_events` (e.g. 90 days) and dropping old partitions.
