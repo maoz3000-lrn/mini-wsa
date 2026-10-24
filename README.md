@@ -21,18 +21,25 @@ GET  /v1/events/samples ◄─────────────────�
 7. [Design decisions and trade-offs](#design-decisions-and-trade-offs)
 8. [Challenges and how they were solved](#challenges-and-how-they-were-solved)
 9. [Future improvements](#future-improvements)
-10. [Project history](#project-history)
+10. [Troubleshooting](#troubleshooting)
+11. [Project history](#project-history)
 
 ## Quick start
 
 Requires Docker with Compose v2.
 
 ```bash
-docker compose up -d --build --wait                 # Kafka, Redis, ClickHouse and the app on :8080
+docker compose up -d --build --wait                 # Kafka, Redis, ClickHouse, Kafka UI and the app on :8080
 docker compose run --rm generator --count 10000     # 10k events, 30% in attack waves
 curl -s localhost:8080/v1/stats/summary | jq
 curl -s 'localhost:8080/v1/events/samples?category=INJECTION&limit=5' | jq
 ```
+
+| Page | URL |
+|---|---|
+| Swagger UI: interactive API docs with "Try it out" | http://localhost:8080/swagger-ui.html |
+| OpenAPI spec (JSON) | http://localhost:8080/v3/api-docs |
+| Kafka UI: topics, messages with headers, consumer lag | http://localhost:8090 |
 
 If port 8080 is busy, run `APP_PORT=18080 docker compose up -d --build --wait` and use that port.
 
@@ -182,7 +189,7 @@ A fixed `--seed` reproduces the same data. `--out` writes `batch-NNNNN.json` fil
 
 ## API reference
 
-Base URL: `http://localhost:8080`. Errors use [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details (`application/problem+json`).
+Base URL: `http://localhost:8080`. The same API can be explored and called from **Swagger UI at http://localhost:8080/swagger-ui.html** (spec: `/v3/api-docs`). Each instance documents only the endpoints of its roles. In the split layout the gateway does not route the docs, so browse them in the default single-container layout. Errors use [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details (`application/problem+json`).
 
 | Status | When |
 |---|---|
@@ -435,6 +442,14 @@ docker compose -f docker-compose.yml -f docker-compose.split.yml run --rm genera
 - **The gateway** re-resolves service names every 5 s, so recreated or scaled replicas are picked up.
 - **Why separate roles:** the write path is high-volume and must never stall, while heavy dashboard queries cost memory and garbage-collection pauses. Separate processes keep one from starving the other. The whole split layout needs about 5–6 GB of RAM.
 
+### Kafka UI
+[Kafka UI](https://github.com/kafbat/kafka-ui) (`kafbat/kafka-ui`) runs at **http://localhost:8090** (`KAFKA_UI_PORT` in `.env`) and is started by default. It shows:
+- **Topics:** `dlr-raw` (6 partitions) and `dlr-raw.DLT`, with message keys (eventId), JSON values and headers. The dead-letter reason and origin are visible per message.
+- **Consumers:** group `mini-wsa-processing` with lag per partition. It should drop back to 0 shortly after a generator run.
+- **Producing:** you can send messages by hand, e.g. to re-publish a fixed dead letter to `dlr-raw`.
+
+It is a local development tool with no authentication; don't expose it beyond your machine.
+
 ### Dead-letter topic: `dlr-raw.DLT`
 Processing never blocks a partition on a bad record. It sorts failures into two kinds:
 
@@ -447,6 +462,7 @@ Processing never blocks a partition on a bad record. It sorts failures into two 
 
 Dead letters carry these headers: `miniwsa-dlt-reason`, `kafka_dlt-exception-message`, `kafka_dlt-original-topic`, `kafka_dlt-original-partition` and `kafka_dlt-original-offset`. The counter `miniwsa.dead.letters{reason}` counts them.
 
+Inspect them in [Kafka UI](#kafka-ui) or on the command line:
 ```bash
 # inspect
 docker compose exec kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 \
@@ -493,6 +509,7 @@ All settings are in [`application.yml`](mini-wsa-app/src/main/resources/applicat
 | `miniwsa.repeat-offender.max-entries` | 6 | Entries kept per IP; must be ≥ min-prior-events. Raise to tolerate more out-of-order events |
 | `miniwsa.repeat-offender.allowed-lateness` | 5m | Grace for late events; key TTL = window + lateness |
 | `miniwsa.clickhouse.init-schema` | true | Create the table on startup (idempotent) |
+| `miniwsa.clickhouse.init-retries` / `init-retry-interval` | 10 / 3s | How long startup waits for ClickHouse to become reachable (DNS, connection refused); other errors fail at once |
 | `miniwsa.analytics.accuracy` | EXACT | `EXACT` / `BEST_EFFORT` |
 | `miniwsa.analytics.query-timeout` | 30s | ClickHouse `max_execution_time` per query |
 | `spring.kafka.*`, `spring.datasource.*`, `spring.data.redis.*` | see file | Connections; env shortcuts `KAFKA_BOOTSTRAP_SERVERS`, `CLICKHOUSE_HOST/PORT/DB/USER/PASSWORD`, `REDIS_HOST/PORT` |
@@ -580,6 +597,26 @@ An in-JVM "known offender" cache from the original design was dropped. Being an 
   - Redis Sentinel or Cluster (each script touches one key, so it is cluster-safe)
 - **Observability:** Prometheus registry, dashboards and alerts on consumer lag, processing lag and dead-letter rate.
 - **Bonus challenges** (not implemented): time series would be one `toStartOfInterval` query; alerting and rate limiting would reuse the analytics reader and Redis.
+
+## Troubleshooting
+
+**App exits at startup with `Failed to execute SQL script statement #1 of class path resource [clickhouse/schema.sql]`**
+
+That message wraps the real cause; look further down the log for `Caused by:`.
+- `UnknownHostException: clickhouse` or `Connection refused`: the app cannot reach ClickHouse. The app retries for about 30 s (`init-retries` × `init-retry-interval`), and Compose restarts it if it still fails (`restart: on-failure`), so a slow ClickHouse start recovers on its own.
+- If it keeps failing, check the app container's DNS:
+  ```bash
+  docker compose exec app sh -c 'cat /etc/resolv.conf; nslookup clickhouse'
+  ```
+  A container attached to the Compose network uses Docker's embedded DNS, `nameserver 127.0.0.11`. If it shows your host's resolver instead (e.g. `192.168.65.7`), Docker Desktop failed to attach the container to the network. Recreate it with `docker compose up -d --force-recreate --wait app`. If that doesn't help, run `docker compose down` (data is kept) and `up` again, and as a last resort restart Docker Desktop.
+
+**`Bind for 0.0.0.0:8080 failed: port is already allocated`**
+
+Another process uses the port. Run with `APP_PORT=18080 docker compose up -d --build --wait` (and `KAFKA_UI_PORT=...` for 8090).
+
+**Events accepted (201) but not visible in stats yet**
+
+This is expected for a short while (see [Consistency model](#consistency-model)). Check consumer lag in [Kafka UI](#kafka-ui) or at `/actuator/metrics/kafka.consumer.fetch.manager.records.lag.max`.
 
 ## Project history
 Built incrementally, with one tag per milestone (`git log --oneline --decorate`):
