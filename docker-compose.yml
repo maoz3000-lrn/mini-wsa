@@ -99,6 +99,26 @@ services:
       timeout: 3s
       retries: 30
 
+  # Web console for ClickHouse (table browser, SQL editor, query monitoring): http://localhost:3488
+  # Log in with the ClickHouse credentials from .env (CLICKHOUSE_USER / CLICKHOUSE_PASSWORD)
+  clickhouse-ui:
+    image: ghcr.io/caioricciuti/ch-ui:v2.30.0
+    ports:
+      - "${CLICKHOUSE_UI_PORT}:3488"
+    environment:
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CONNECTION_NAME: mini-wsa
+    volumes:
+      - clickhouse-ui-data:/app/data
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3488/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   # All roles in one process; see docker-compose.split.yml for a scaled-out layout
   app:
     build:
@@ -150,3 +170,4 @@ volumes:
   kafka-data:
   redis-data:
   clickhouse-data:
+  clickhouse-ui-data:
