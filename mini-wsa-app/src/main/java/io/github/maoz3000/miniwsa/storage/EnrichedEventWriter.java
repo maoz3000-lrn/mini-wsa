@@ -15,6 +15,7 @@ public interface EnrichedEventWriter {
      *
      * @return the events refused individually for bad data; every other event was stored
      * @throws TransientStorageException store unavailable or overloaded; nothing stored, retry the batch
+     * @throws PermanentStorageException store rejected the batch as a whole for data reasons; retrying cannot help
      */
     SaveResult saveAll(List<EnrichedEvent> events);
 }

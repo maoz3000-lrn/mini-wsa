@@ -44,7 +44,7 @@ public class ClickHouseEnrichedEventWriter implements EnrichedEventWriter {
         try {
             jdbcTemplate.batchUpdate(INSERT_SQL, rows);
         } catch (DataAccessException e) {
-            throw new TransientStorageException("ClickHouse insert of " + rows.size() + " rows failed", e);
+            throw ClickHouseFailureClassifier.classify("ClickHouse insert of " + rows.size() + " rows failed", e);
         }
     }
 }
