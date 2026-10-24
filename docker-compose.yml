@@ -106,6 +106,8 @@ services:
         condition: service_healthy
     # Lets the consumer finish its batch and commit offsets on shutdown
     stop_grace_period: 30s
+    # A container that dies during startup (e.g. ClickHouse not reachable within the init retries) is restarted
+    restart: on-failure
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/actuator/health"]
       interval: 5s

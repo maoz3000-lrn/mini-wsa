@@ -8,6 +8,7 @@ x-role-service: &role-service
     dockerfile: mini-wsa-app/Dockerfile
   image: mini-wsa-app:latest
   stop_grace_period: 30s
+  restart: on-failure
   depends_on:
     kafka-init:
       condition: service_completed_successfully
