@@ -1,6 +1,11 @@
 spring:
   application:
     name: mini-wsa
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
@@ -52,3 +57,13 @@ miniwsa:
     max-future-skew: 5m
     # How long to wait for Kafka acknowledgement before answering 503
     publish-timeout: 5s
+  repeat-offender:
+    # Look-back window for the repeat-offender bonus, measured in event time
+    window: 10m
+    # Earlier events of the same client IP required for the +15 bonus ("more than 5")
+    min-prior-events: 6
+    # Newest entries kept per IP in Redis; must be >= min-prior-events. Raise it to tolerate more out-of-order events
+    max-entries: 6
+    # Grace period for late events; Redis keys expire after window + allowed-lateness of inactivity
+    allowed-lateness: 5m
+    key-prefix: "ro:"
