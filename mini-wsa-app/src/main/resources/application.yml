@@ -63,6 +63,14 @@ server:
   port: 8080
   shutdown: graceful
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    # Interactive API page; documents only the endpoints of this instance's roles
+    path: /swagger-ui.html
+    try-it-out-enabled: true
+
 management:
   endpoints:
     web:
