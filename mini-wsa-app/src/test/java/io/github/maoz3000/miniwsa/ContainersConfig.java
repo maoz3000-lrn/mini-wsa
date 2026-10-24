@@ -3,33 +3,49 @@ package io.github.maoz3000.miniwsa;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
+import org.testcontainers.clickhouse.ClickHouseContainer;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /**
  * Infrastructure for integration tests, using the same images as docker-compose.yml.
- * Containers are shared by every test context that imports this configuration.
+ * Containers are JVM-wide singletons, shared by every test context that imports this configuration.
  */
 @TestConfiguration(proxyBeanMethods = false)
 public class ContainersConfig {
 
     public static final DockerImageName KAFKA_IMAGE = DockerImageName.parse("apache/kafka:4.3.2");
     public static final DockerImageName REDIS_IMAGE = DockerImageName.parse("redis:8.6.7-alpine");
+    public static final DockerImageName CLICKHOUSE_IMAGE = DockerImageName.parse("clickhouse/clickhouse-server:26.3");
+
+    private static final KafkaContainer KAFKA = new KafkaContainer(KAFKA_IMAGE);
+    private static final GenericContainer<?> REDIS = redisContainer();
+    private static final ClickHouseContainer CLICKHOUSE = clickHouseContainer();
 
     public static GenericContainer<?> redisContainer() {
         return new GenericContainer<>(REDIS_IMAGE).withExposedPorts(6379);
     }
 
+    public static ClickHouseContainer clickHouseContainer() {
+        return new ClickHouseContainer(CLICKHOUSE_IMAGE).withDatabaseName("miniwsa");
+    }
+
     @Bean
     @ServiceConnection
     KafkaContainer kafkaContainer() {
-        return new KafkaContainer(KAFKA_IMAGE);
+        return KAFKA;
     }
 
     @Bean
     @ServiceConnection(name = "redis")
     GenericContainer<?> redis() {
-        return redisContainer();
+        return REDIS;
+    }
+
+    @Bean
+    @ServiceConnection
+    ClickHouseContainer clickHouse() {
+        return CLICKHOUSE;
     }
 }

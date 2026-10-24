@@ -1,6 +1,13 @@
 spring:
   application:
     name: mini-wsa
+  datasource:
+    url: jdbc:clickhouse://${CLICKHOUSE_HOST:localhost}:${CLICKHOUSE_PORT:8123}/${CLICKHOUSE_DB:miniwsa}
+    username: ${CLICKHOUSE_USER:default}
+    password: ${CLICKHOUSE_PASSWORD:}
+    driver-class-name: com.clickhouse.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -45,6 +52,9 @@ miniwsa:
   kafka:
     topic: dlr-raw
     dlt-topic: dlr-raw.DLT
+  clickhouse:
+    # Create the dlr_events table on startup if missing (idempotent)
+    init-schema: true
   api:
     # Retry-After header value on 503 responses
     retry-after: 5s
