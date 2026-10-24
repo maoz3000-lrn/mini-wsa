@@ -5,7 +5,6 @@ import io.github.maoz3000.miniwsa.domain.RuleCategory;
 import io.github.maoz3000.miniwsa.domain.query.EventFilter;
 import org.junit.jupiter.api.Test;
 
-import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -33,10 +32,11 @@ class ClickHouseFilterSqlTest {
 
         ClickHouseFilterSql sql = ClickHouseFilterSql.of(filter, EXACT);
 
-        assertThat(sql.where()).isEqualTo(" WHERE config_id = :configId AND timestamp >= :from AND timestamp <= :to"
+        assertThat(sql.where()).isEqualTo(" WHERE config_id = :configId"
+                + " AND timestamp >= toDateTime64(:from, 3, 'UTC') AND timestamp <= toDateTime64(:to, 3, 'UTC')"
                 + " AND rule_category = :category AND action = :action");
         assertThat(sql.parameters().getValues()).isEqualTo(Map.of(
-                "configId", 14227L, "from", Timestamp.from(FROM), "to", Timestamp.from(TO),
+                "configId", 14227L, "from", "2026-05-20 00:00:00.000", "to", "2026-05-21 00:00:00.000",
                 "category", "XSS", "action", "ALERT"));
     }
 

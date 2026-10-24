@@ -3,7 +3,9 @@ package io.github.maoz3000.miniwsa.storage;
 import io.github.maoz3000.miniwsa.domain.query.EventFilter;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
-import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -12,6 +14,10 @@ import java.util.stream.Collectors;
  * Translates an {@link EventFilter} and the read accuracy into ClickHouse SQL fragments with named parameters.
  */
 final class ClickHouseFilterSql {
+
+    // Instants are bound as explicit UTC text: binding java.sql.Timestamp would shift by the JVM's zone
+    private static final DateTimeFormatter UTC_MILLIS =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneOffset.UTC);
 
     private final String source;
     private final String where;
@@ -33,12 +39,12 @@ final class ClickHouseFilterSql {
             parameters.addValue("configId", filter.configId());
         }
         if (filter.from() != null) {
-            conditions.add("timestamp >= :from");
-            parameters.addValue("from", Timestamp.from(filter.from()));
+            conditions.add("timestamp >= toDateTime64(:from, 3, 'UTC')");
+            parameters.addValue("from", utc(filter.from()));
         }
         if (filter.to() != null) {
-            conditions.add("timestamp <= :to");
-            parameters.addValue("to", Timestamp.from(filter.to()));
+            conditions.add("timestamp <= toDateTime64(:to, 3, 'UTC')");
+            parameters.addValue("to", utc(filter.to()));
         }
         if (filter.category() != null) {
             conditions.add("rule_category = :category");
@@ -59,6 +65,10 @@ final class ClickHouseFilterSql {
                 conditions.isEmpty() ? "" : " WHERE " + String.join(" AND ", conditions),
                 settings.stream().collect(Collectors.joining(", ", " SETTINGS ", "")),
                 parameters);
+    }
+
+    static String utc(Instant instant) {
+        return UTC_MILLIS.format(instant);
     }
 
     /** Table expression, with {@code FINAL} when exact results are required. */
