@@ -56,7 +56,8 @@ public class DlrBatchConsumer {
         this.metrics = metrics;
     }
 
-    @KafkaListener(id = "dlr-processing", topics = "${miniwsa.kafka.topic}", batch = "true",
+    // idIsGroup = false: the consumer group comes from spring.kafka.consumer.group-id, not from the listener id
+    @KafkaListener(id = "dlr-processing", idIsGroup = false, topics = "${miniwsa.kafka.topic}", batch = "true",
             concurrency = "${miniwsa.processing.concurrency}")
     public void onBatch(List<ConsumerRecord<String, IngestedEvent>> records, Acknowledgment acknowledgment) {
         Map<IngestedEvent, ConsumerRecord<String, IngestedEvent>> sources = records.stream()
