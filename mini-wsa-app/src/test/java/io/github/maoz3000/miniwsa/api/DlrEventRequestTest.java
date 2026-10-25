@@ -75,7 +75,10 @@ class DlrEventRequestTest {
                 cases("path", (r, v) -> r.toBuilder().path(v).build(),
                         List.of("/", "/api/v1/login", "/search?q=1%27%20OR%201=1--", "/a\r\nSet-Cookie: x", "*",
                                 "http://www.example.com/admin"),
-                        List.of("index.html", "api/v1/login", " /login", "ftp://example.com/x", "**")))
+                        List.of("index.html", "api/v1/login", " /login", "ftp://example.com/x", "**")),
+                cases("method", (r, v) -> r.toBuilder().method(v).build(),
+                        List.of("GET", "POST", "PROPFIND", "M-SEARCH", "get", "X_DEBUG"),
+                        List.of("GET ", "GE T", "GET/1.1", "(GET)", "GÉT")))
                 .flatMap(s -> s);
     }
 

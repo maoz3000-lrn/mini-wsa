@@ -32,7 +32,7 @@ public record DlrEventRequest(
         @NotBlank @IpAddress String clientIp,
         @NotBlank @Size(max = 255) @Pattern(regexp = HOST, message = HOST_MESSAGE) String hostname,
         @NotBlank @Size(max = 2048) @Pattern(regexp = REQUEST_TARGET, message = REQUEST_TARGET_MESSAGE) String path,
-        @NotBlank @Size(max = 16) String method,
+        @NotBlank @Size(max = 16) @Pattern(regexp = HTTP_TOKEN, message = HTTP_TOKEN_MESSAGE) String method,
         @NotNull @Min(100) @Max(599) Integer statusCode,
         @Size(max = 1024) String userAgent,
         @NotNull @Valid RuleRequest rule,
@@ -52,6 +52,10 @@ public record DlrEventRequest(
     // request-target forms of RFC 9112; raw attack payloads after the leading "/" are kept as sent
     static final String REQUEST_TARGET = "(?s)(/|https?://).*|\\*";
     static final String REQUEST_TARGET_MESSAGE = "must start with /, be *, or be an absolute http(s) URL";
+
+    // an RFC 9110 token, not an enum: WebDAV and junk methods from attack traffic are real and must be logged
+    static final String HTTP_TOKEN = "[!#$%&'*+.^_`|~0-9A-Za-z-]+";
+    static final String HTTP_TOKEN_MESSAGE = "must be an HTTP method token";
 
     /**
      * Call only on a request that passed validation: the domain event rejects missing required fields.
