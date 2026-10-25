@@ -68,7 +68,10 @@ class DlrEventRequestTest {
         return Stream.of(
                 cases("eventId", (r, v) -> r.toBuilder().eventId(v).build(),
                         List.of("evt-00132", "550e8400-e29b-41d4-a716-446655440000", "a:b/c_d.e"),
-                        List.of("evt 00132", "evt\t1", "évt-1", "evt-1\n")))
+                        List.of("evt 00132", "evt\t1", "évt-1", "evt-1\n")),
+                cases("hostname", (r, v) -> r.toBuilder().hostname(v).build(),
+                        List.of("www.example.com", "api.example.org:8443", "203.0.113.42", "localhost", "[2001:db8::1]:443"),
+                        List.of("www.example.com/path", "exa mple.com", "host:", "host:123456", "ex@mple.com", "[nope]")))
                 .flatMap(s -> s);
     }
 
