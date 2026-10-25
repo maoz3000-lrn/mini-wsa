@@ -43,6 +43,16 @@ class EnrichmentServiceTest {
                 new EnrichedEvent(late, "SQL/Command Injection", 90));
     }
 
+    // the batch consumer maps results back to their Kafka records by instance, not by value
+    @Test
+    void keepsTheIngestedInstances() {
+        IngestedEvent event = ingested("only", 0);
+        when(window.recordAndCountPrior(anyList())).thenReturn(List.of(0L));
+
+        assertThat(service.enrich(List.of(event))).singleElement()
+                .satisfies(enriched -> assertThat(enriched.ingested()).isSameAs(event));
+    }
+
     private static IngestedEvent ingested(String eventId, int secondsAfter) {
         DlrEvent event = validEvent().toBuilder()
                 .eventId(eventId)
