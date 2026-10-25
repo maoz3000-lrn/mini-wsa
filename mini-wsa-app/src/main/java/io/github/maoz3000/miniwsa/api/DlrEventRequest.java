@@ -31,7 +31,7 @@ public record DlrEventRequest(
         @NotBlank @Size(max = 64) String policyId,
         @NotBlank @IpAddress String clientIp,
         @NotBlank @Size(max = 255) @Pattern(regexp = HOST, message = HOST_MESSAGE) String hostname,
-        @NotBlank @Size(max = 2048) String path,
+        @NotBlank @Size(max = 2048) @Pattern(regexp = REQUEST_TARGET, message = REQUEST_TARGET_MESSAGE) String path,
         @NotBlank @Size(max = 16) String method,
         @NotNull @Min(100) @Max(599) Integer statusCode,
         @Size(max = 1024) String userAgent,
@@ -48,6 +48,10 @@ public record DlrEventRequest(
     // grouped by in the statistics and stored as LowCardinality: free text would split one site into many
     static final String HOST = "([A-Za-z0-9.-]+|\\[[0-9A-Fa-f:.]+])(:\\d{1,5})?";
     static final String HOST_MESSAGE = "must be a host name or IP literal, optionally with :port";
+
+    // request-target forms of RFC 9112; raw attack payloads after the leading "/" are kept as sent
+    static final String REQUEST_TARGET = "(?s)(/|https?://).*|\\*";
+    static final String REQUEST_TARGET_MESSAGE = "must start with /, be *, or be an absolute http(s) URL";
 
     /**
      * Call only on a request that passed validation: the domain event rejects missing required fields.

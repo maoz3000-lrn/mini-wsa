@@ -71,7 +71,11 @@ class DlrEventRequestTest {
                         List.of("evt 00132", "evt\t1", "évt-1", "evt-1\n")),
                 cases("hostname", (r, v) -> r.toBuilder().hostname(v).build(),
                         List.of("www.example.com", "api.example.org:8443", "203.0.113.42", "localhost", "[2001:db8::1]:443"),
-                        List.of("www.example.com/path", "exa mple.com", "host:", "host:123456", "ex@mple.com", "[nope]")))
+                        List.of("www.example.com/path", "exa mple.com", "host:", "host:123456", "ex@mple.com", "[nope]")),
+                cases("path", (r, v) -> r.toBuilder().path(v).build(),
+                        List.of("/", "/api/v1/login", "/search?q=1%27%20OR%201=1--", "/a\r\nSet-Cookie: x", "*",
+                                "http://www.example.com/admin"),
+                        List.of("index.html", "api/v1/login", " /login", "ftp://example.com/x", "**")))
                 .flatMap(s -> s);
     }
 
