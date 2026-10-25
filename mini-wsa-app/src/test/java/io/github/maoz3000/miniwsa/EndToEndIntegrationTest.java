@@ -1,5 +1,6 @@
 package io.github.maoz3000.miniwsa;
 
+import io.github.maoz3000.miniwsa.api.DlrEventResponse;
 import io.github.maoz3000.miniwsa.api.SampleEventResponse;
 import io.github.maoz3000.miniwsa.api.SamplesPage;
 import io.github.maoz3000.miniwsa.api.StatsSummaryResponse;
@@ -98,7 +99,7 @@ class EndToEndIntegrationTest {
         Optional<String> next = Optional.of("/v1/events/samples?configId=" + configId + "&limit=4");
         while (next.isPresent()) {
             Page page = samples(next.get());
-            page.page().events().stream().map(SampleEventResponse::event).map(DlrEvent::eventId).forEach(visited::add);
+            page.page().events().stream().map(SampleEventResponse::event).map(DlrEventResponse::eventId).forEach(visited::add);
             next = page.next();
         }
 

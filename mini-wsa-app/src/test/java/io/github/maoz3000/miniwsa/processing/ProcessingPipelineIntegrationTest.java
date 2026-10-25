@@ -19,6 +19,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -104,6 +105,22 @@ class ProcessingPipelineIntegrationTest {
                         tuple(unreadableKey, "DESERIALIZATION"),
                         tuple(badStatus.event().eventId(), "ROW_VALIDATION"));
         assertThat(count("event_id = '" + badStatus.event().eventId() + "'")).isZero();
+    }
+
+    @Test
+    void deadLettersRecordsThatBreakDomainInvariantsAndKeepsProcessing() {
+        String pillKey = "pill-" + UUID.randomUUID();
+        ObjectNode pill = objectMapper.valueToTree(eventFrom("192.0.2.30", pillKey, Instant.parse("2026-05-20T13:00:00Z")));
+        ((ObjectNode) pill.get("event")).putNull("rule");
+        IngestedEvent after = eventFrom("192.0.2.31", "after-" + UUID.randomUUID(), Instant.parse("2026-05-20T13:00:01Z"));
+
+        sendRaw(pillKey, objectMapper.writeValueAsBytes(pill));
+        send(after);
+
+        assertThat(pollDeadLetters(Set.of(pillKey))).extracting(ConsumerRecord::key, r -> new String(r.headers()
+                        .lastHeader(KafkaDeadLetterSink.REASON_HEADER).value(), StandardCharsets.UTF_8))
+                .containsExactly(tuple(pillKey, "DESERIALIZATION"));
+        await().atMost(TIMEOUT).until(() -> count("event_id = '" + after.event().eventId() + "'") == 1);
     }
 
     private long count(String condition) {

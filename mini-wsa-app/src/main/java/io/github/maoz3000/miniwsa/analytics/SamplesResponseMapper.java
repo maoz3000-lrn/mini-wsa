@@ -1,5 +1,6 @@
 package io.github.maoz3000.miniwsa.analytics;
 
+import io.github.maoz3000.miniwsa.api.DlrEventResponse;
 import io.github.maoz3000.miniwsa.api.SampleEventResponse;
 import io.github.maoz3000.miniwsa.api.SamplesPage;
 import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
@@ -19,6 +20,6 @@ final class SamplesResponseMapper {
     }
 
     private static SampleEventResponse toResponse(EnrichedEvent e) {
-        return new SampleEventResponse(e.event(), e.receivedAt(), e.attackType(), e.threatScore());
+        return new SampleEventResponse(DlrEventResponse.from(e.event()), e.receivedAt(), e.attackType(), e.threatScore());
     }
 }

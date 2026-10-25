@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.domain;
+package io.github.maoz3000.miniwsa.api;
 
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;

@@ -1,5 +1,8 @@
 package io.github.maoz3000.miniwsa.fixtures;
 
+import io.github.maoz3000.miniwsa.api.DlrEventRequest;
+import io.github.maoz3000.miniwsa.api.DlrEventRequest.GeoLocationRequest;
+import io.github.maoz3000.miniwsa.api.DlrEventRequest.RuleRequest;
 import io.github.maoz3000.miniwsa.domain.Action;
 import io.github.maoz3000.miniwsa.domain.DlrEvent;
 import io.github.maoz3000.miniwsa.domain.GeoLocation;
@@ -40,6 +43,35 @@ public final class DlrEventFixtures {
                         .build())
                 .action(Action.DENY)
                 .geoLocation(new GeoLocation("CN", "Beijing"))
+                .requestSize(1024L)
+                .responseSize(256L)
+                .build();
+    }
+
+    /**
+     * The ingest request carrying {@link #validEvent()}.
+     */
+    public static DlrEventRequest validRequest() {
+        return DlrEventRequest.builder()
+                .eventId("evt-00132")
+                .timestamp(EVENT_TIME)
+                .configId(14227L)
+                .policyId("pol_web1")
+                .clientIp("203.0.113.42")
+                .hostname("www.example.com")
+                .path("/api/v1/login")
+                .method("POST")
+                .statusCode(403)
+                .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                .rule(RuleRequest.builder()
+                        .id("950001")
+                        .name("SQL_INJECTION")
+                        .message("SQL Injection Attack Detected")
+                        .severity(RuleSeverity.CRITICAL)
+                        .category(RuleCategory.INJECTION)
+                        .build())
+                .action(Action.DENY)
+                .geoLocation(new GeoLocationRequest("CN", "Beijing"))
                 .requestSize(1024L)
                 .responseSize(256L)
                 .build();

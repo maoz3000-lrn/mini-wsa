@@ -2,15 +2,18 @@ package io.github.maoz3000.miniwsa.domain;
 
 import lombok.Builder;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import java.util.Objects;
 
 @Builder(toBuilder = true)
 public record Rule(
-        @NotBlank @Size(max = 64) String id,
-        @NotBlank @Size(max = 128) String name,
-        @Size(max = 512) String message,
-        @NotNull RuleSeverity severity,
-        @NotNull RuleCategory category) {
+        String id,
+        String name,
+        String message,
+        RuleSeverity severity,
+        RuleCategory category) {
+
+    public Rule {
+        Objects.requireNonNull(severity, "severity");
+        Objects.requireNonNull(category, "category");
+    }
 }

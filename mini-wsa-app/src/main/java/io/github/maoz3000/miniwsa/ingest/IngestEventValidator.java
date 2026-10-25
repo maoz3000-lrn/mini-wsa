@@ -1,5 +1,6 @@
 package io.github.maoz3000.miniwsa.ingest;
 
+import io.github.maoz3000.miniwsa.api.DlrEventRequest;
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;
 import io.github.maoz3000.miniwsa.domain.DlrEvent;
@@ -49,27 +50,28 @@ public class IngestEventValidator {
         if (!errors.isEmpty()) {
             throw new EventValidationException(errors);
         }
-        return bound.stream().map(Bound::event).toList();
+        return bound.stream().map(b -> b.request().toDomain()).toList();
     }
 
     private Bound bind(int index, JsonNode node) {
         try {
-            DlrEvent event = objectMapper.treeToValue(node, DlrEvent.class);
-            return new Bound(event, Stream.concat(constraintErrors(index, event), skewErrors(index, event)).toList());
+            DlrEventRequest request = objectMapper.treeToValue(node, DlrEventRequest.class);
+            return new Bound(request,
+                    Stream.concat(constraintErrors(index, request), skewErrors(index, request)).toList());
         } catch (JacksonException e) {
             return new Bound(null, List.of(new EventError(index, pathOf(e), bindingMessage(e))));
         }
     }
 
-    private Stream<EventError> constraintErrors(int index, DlrEvent event) {
-        return validator.validate(event).stream()
+    private Stream<EventError> constraintErrors(int index, DlrEventRequest request) {
+        return validator.validate(request).stream()
                 .map(v -> new EventError(index, v.getPropertyPath().toString(), v.getMessage()))
                 .sorted((a, b) -> a.field().compareTo(b.field()));
     }
 
-    private Stream<EventError> skewErrors(int index, DlrEvent event) {
+    private Stream<EventError> skewErrors(int index, DlrEventRequest request) {
         Instant latestAllowed = clock.instant().plus(properties.maxFutureSkew());
-        return event.timestamp() != null && event.timestamp().isAfter(latestAllowed)
+        return request.timestamp() != null && request.timestamp().isAfter(latestAllowed)
                 ? Stream.of(new EventError(index, "timestamp",
                         "must not be more than " + properties.maxFutureSkew() + " ahead of server time"))
                 : Stream.empty();
@@ -96,6 +98,6 @@ public class IngestEventValidator {
         return Number.class.isAssignableFrom(target) ? "must be a number" : INVALID_VALUE;
     }
 
-    private record Bound(DlrEvent event, List<EventError> errors) {
+    private record Bound(DlrEventRequest request, List<EventError> errors) {
     }
 }

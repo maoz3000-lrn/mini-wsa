@@ -3,6 +3,7 @@ package io.github.maoz3000.miniwsa.processing;
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;
 import io.github.maoz3000.miniwsa.domain.DlrEvent;
+import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -19,8 +20,6 @@ public class ThreatScoreCalculator {
 
     public static final int SENSITIVE_PATH_BONUS = 15;
     public static final int REPEAT_OFFENDER_BONUS = 15;
-    public static final int MIN_SCORE = 0;
-    public static final int MAX_SCORE = 100;
 
     /**
      * Matched as case-insensitive substrings of the raw path (no URL decoding).
@@ -41,6 +40,6 @@ public class ThreatScoreCalculator {
     }
 
     static int clamp(int score) {
-        return Math.clamp(score, MIN_SCORE, MAX_SCORE);
+        return Math.clamp(score, EnrichedEvent.MIN_THREAT_SCORE, EnrichedEvent.MAX_THREAT_SCORE);
     }
 }

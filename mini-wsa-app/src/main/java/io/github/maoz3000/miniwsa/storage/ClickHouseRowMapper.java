@@ -13,7 +13,8 @@ import java.util.stream.Stream;
 
 /**
  * Converts enriched events to {@code dlr_events} rows and checks every value fits its column, so the
- * database never rejects a batch because of one bad row. Problems are reported per event.
+ * database never rejects a batch because of one bad row. Problems are reported per event. Required fields and
+ * the threat score range are guaranteed by the domain records, so only column limits are checked here.
  */
 final class ClickHouseRowMapper {
 
@@ -26,7 +27,6 @@ final class ClickHouseRowMapper {
     // DateTime64 supports [1900-01-01, 2299-12-31]
     private static final Instant MIN_TIME = Instant.parse("1900-01-01T00:00:00Z");
     private static final Instant MAX_TIME = Instant.parse("2299-12-31T23:59:59.999Z");
-    private static final int UINT8_MAX = 255;
     private static final int UINT16_MAX = 65_535;
 
     private ClickHouseRowMapper() {
@@ -48,20 +48,12 @@ final class ClickHouseRowMapper {
     static Optional<String> problem(EnrichedEvent enriched) {
         DlrEvent e = enriched.event();
         return Stream.of(
-                        missing("eventId", e.eventId()), missing("timestamp", e.timestamp()),
-                        missing("receivedAt", enriched.receivedAt()), missing("configId", e.configId()),
-                        missing("rule", e.rule()), missing("action", e.action()),
-                        missing("attackType", enriched.attackType()),
                         outOfRange("timestamp", e.timestamp()), outOfRange("receivedAt", enriched.receivedAt()),
-                        check(e.configId() != null && e.configId() <= 0, "configId must be positive"),
+                        check(e.configId() <= 0, "configId must be positive"),
                         check(e.statusCode() != null && (e.statusCode() < 0 || e.statusCode() > UINT16_MAX),
                                 "statusCode out of UInt16 range"),
                         check(e.requestSize() != null && e.requestSize() < 0, "requestSize must not be negative"),
                         check(e.responseSize() != null && e.responseSize() < 0, "responseSize must not be negative"),
-                        check(enriched.threatScore() < 0 || enriched.threatScore() > UINT8_MAX,
-                                "threatScore out of UInt8 range"),
-                        check(e.rule() != null && (e.rule().severity() == null || e.rule().category() == null),
-                                "rule severity and category are required"),
                         check(textFields(enriched).anyMatch(ClickHouseRowMapper::hasLoneSurrogate),
                                 "text contains invalid UTF-16 (unpaired surrogate)"))
                 .flatMap(Optional::stream)
@@ -81,8 +73,7 @@ final class ClickHouseRowMapper {
 
     private static Stream<String> textFields(EnrichedEvent enriched) {
         DlrEvent e = enriched.event();
-        Stream<String> ruleTexts = Optional.ofNullable(e.rule())
-                .map(r -> Stream.of(r.id(), r.name(), r.message())).orElseGet(Stream::empty);
+        Stream<String> ruleTexts = Stream.of(e.rule().id(), e.rule().name(), e.rule().message());
         Stream<String> geoTexts = Optional.ofNullable(e.geoLocation())
                 .map(g -> Stream.of(g.country(), g.city())).orElseGet(Stream::empty);
         return Stream.of(Stream.of(e.eventId(), e.policyId(), e.clientIp(), e.hostname(), e.path(), e.method(),
@@ -95,12 +86,8 @@ final class ClickHouseRowMapper {
         return text != null && text.codePoints().anyMatch(cp -> cp >= Character.MIN_SURROGATE && cp <= Character.MAX_SURROGATE);
     }
 
-    private static Optional<String> missing(String field, Object value) {
-        return check(value == null, field + " is required");
-    }
-
     private static Optional<String> outOfRange(String field, Instant value) {
-        return check(value != null && (value.isBefore(MIN_TIME) || value.isAfter(MAX_TIME)),
+        return check(value.isBefore(MIN_TIME) || value.isAfter(MAX_TIME),
                 field + " outside DateTime64 range");
     }
 

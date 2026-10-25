@@ -47,8 +47,6 @@ class ClickHouseRowMapperTest {
 
     static Stream<Arguments> invalidEvents() {
         return Stream.of(
-                Arguments.of((UnaryOperator<DlrEvent>) e -> e.toBuilder().eventId(null).build(), 75,
-                        "eventId is required"),
                 Arguments.of((UnaryOperator<DlrEvent>) e -> e.toBuilder().timestamp(Instant.parse("1800-01-01T00:00:00Z")).build(),
                         75, "timestamp outside DateTime64 range"),
                 Arguments.of((UnaryOperator<DlrEvent>) e -> e.toBuilder().configId(-1L).build(), 75,
@@ -56,8 +54,7 @@ class ClickHouseRowMapperTest {
                 Arguments.of((UnaryOperator<DlrEvent>) e -> e.toBuilder().statusCode(70_000).build(), 75,
                         "statusCode out of UInt16 range"),
                 Arguments.of((UnaryOperator<DlrEvent>) e -> e.toBuilder().path("/login\uD800").build(), 75,
-                        "text contains invalid UTF-16 (unpaired surrogate)"),
-                Arguments.of(UnaryOperator.<DlrEvent>identity(), 300, "threatScore out of UInt8 range"));
+                        "text contains invalid UTF-16 (unpaired surrogate)"));
     }
 
     @ParameterizedTest
