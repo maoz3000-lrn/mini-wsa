@@ -24,11 +24,11 @@ public class EnrichmentService {
 
     private final AttackTypeClassifier classifier;
     private final ThreatScoreCalculator calculator;
-    private final RepeatOffenderWindow window;
+    private final RepeatOffenderCounter window;
     private final RepeatOffenderProperties properties;
 
     public EnrichmentService(AttackTypeClassifier classifier, ThreatScoreCalculator calculator,
-                             RepeatOffenderWindow window, RepeatOffenderProperties properties) {
+                             RepeatOffenderCounter window, RepeatOffenderProperties properties) {
         this.classifier = classifier;
         this.calculator = calculator;
         this.window = window;

@@ -22,14 +22,14 @@ public class ProcessingKafkaConfig {
 
     /**
      * Dead letters carry the original record bytes unchanged, so they use a byte-array value serializer.
-     * The template is private to the publisher: exposing a second KafkaTemplate bean would make Boot's
+     * The template is private to the sink: exposing a second KafkaTemplate bean would make Boot's
      * default template back off.
      */
     @Bean
-    public DeadLetterPublisher deadLetterPublisher(ProducerFactory<?, ?> producerFactory, KafkaTopicsProperties topics) {
+    public DeadLetterSink deadLetterSink(ProducerFactory<?, ?> producerFactory, KafkaTopicsProperties topics) {
         Map<String, Object> config = new HashMap<>(producerFactory.getConfigurationProperties());
         config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class);
-        return new DeadLetterPublisher(new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(config)), topics);
+        return new KafkaDeadLetterSink(new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(config)), topics);
     }
 
     /**

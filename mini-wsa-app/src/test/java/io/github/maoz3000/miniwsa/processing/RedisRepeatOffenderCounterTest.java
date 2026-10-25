@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Testcontainers
-class RepeatOffenderWindowTest {
+class RedisRepeatOffenderCounterTest {
 
     private static final RepeatOffenderProperties PROPERTIES =
             new RepeatOffenderProperties(Duration.ofMinutes(10), 6, 6, Duration.ofMinutes(5), "ro:");
@@ -36,7 +36,7 @@ class RepeatOffenderWindowTest {
     private static LettuceConnectionFactory connectionFactory;
     private static StringRedisTemplate redis;
 
-    private RepeatOffenderWindow window;
+    private RedisRepeatOffenderCounter window;
 
     @BeforeAll
     static void connect() {
@@ -54,7 +54,7 @@ class RepeatOffenderWindowTest {
     @BeforeEach
     void setUp() {
         redis.getConnectionFactory().getConnection().serverCommands().flushAll();
-        window = new RepeatOffenderWindow(redis, PROPERTIES);
+        window = new RedisRepeatOffenderCounter(redis, PROPERTIES);
     }
 
     @Test
@@ -123,7 +123,7 @@ class RepeatOffenderWindowTest {
         LettuceConnectionFactory unreachable = new LettuceConnectionFactory(
                 new RedisStandaloneConfiguration("localhost", 1));
         unreachable.afterPropertiesSet();
-        RepeatOffenderWindow broken = new RepeatOffenderWindow(new StringRedisTemplate(unreachable), PROPERTIES);
+        RedisRepeatOffenderCounter broken = new RedisRepeatOffenderCounter(new StringRedisTemplate(unreachable), PROPERTIES);
 
         assertThatThrownBy(() -> broken.recordAndCountPrior(List.of(validEvent())))
                 .isInstanceOf(TransientStorageException.class);

@@ -35,7 +35,7 @@ class DlrBatchConsumerTest {
 
     private final EnrichmentService enrichment = mock(EnrichmentService.class);
     private final EnrichedEventWriter writer = mock(EnrichedEventWriter.class);
-    private final DeadLetterPublisher deadLetters = mock(DeadLetterPublisher.class);
+    private final DeadLetterSink deadLetters = mock(DeadLetterSink.class);
     private final Acknowledgment ack = mock(Acknowledgment.class);
     private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
     private final DlrBatchConsumer consumer = new DlrBatchConsumer(enrichment, writer, deadLetters,

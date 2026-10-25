@@ -20,7 +20,7 @@ class EnrichmentServiceTest {
 
     private static final Duration RECEIVED_AFTER = Duration.ofSeconds(3);
 
-    private final RepeatOffenderWindow window = mock(RepeatOffenderWindow.class);
+    private final RepeatOffenderCounter window = mock(RepeatOffenderCounter.class);
 
     private final EnrichmentService service = new EnrichmentService(new AttackTypeClassifier(),
             new ThreatScoreCalculator(), window,

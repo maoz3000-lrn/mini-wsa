@@ -42,16 +42,16 @@ public class DlrBatchConsumer {
 
     private final EnrichmentService enrichmentService;
     private final EnrichedEventWriter writer;
-    private final DeadLetterPublisher deadLetterPublisher;
+    private final DeadLetterSink deadLetterSink;
     private final ObjectMapper objectMapper;
     private final ProcessingMetrics metrics;
 
     public DlrBatchConsumer(EnrichmentService enrichmentService, EnrichedEventWriter writer,
-                            DeadLetterPublisher deadLetterPublisher, ObjectMapper objectMapper,
+                            DeadLetterSink deadLetterSink, ObjectMapper objectMapper,
                             ProcessingMetrics metrics) {
         this.enrichmentService = enrichmentService;
         this.writer = writer;
-        this.deadLetterPublisher = deadLetterPublisher;
+        this.deadLetterSink = deadLetterSink;
         this.objectMapper = objectMapper;
         this.metrics = metrics;
     }
@@ -72,7 +72,7 @@ public class DlrBatchConsumer {
         List<DeadLetter> unstored = store(enriched, sources);
 
         List<DeadLetter> deadLetters = Stream.concat(unreadable.stream(), unstored.stream()).toList();
-        deadLetterPublisher.publish(deadLetters);
+        deadLetterSink.publish(deadLetters);
         acknowledgment.acknowledge();
         metrics.recordDeadLetters(deadLetters);
         log.debug("Processed batch of {} records ({} dead-lettered)", records.size(), unreadable.size() + unstored.size());

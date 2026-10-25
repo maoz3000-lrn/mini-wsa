@@ -18,18 +18,19 @@ import java.util.concurrent.ExecutionException;
  * acknowledge them, so the source offsets can safely be committed afterwards.
  */
 @Slf4j
-public class DeadLetterPublisher {
+public class KafkaDeadLetterSink implements DeadLetterSink {
 
     public static final String REASON_HEADER = "miniwsa-dlt-reason";
 
     private final KafkaTemplate<String, byte[]> deadLetterTemplate;
     private final KafkaTopicsProperties topics;
 
-    public DeadLetterPublisher(KafkaTemplate<String, byte[]> deadLetterTemplate, KafkaTopicsProperties topics) {
+    public KafkaDeadLetterSink(KafkaTemplate<String, byte[]> deadLetterTemplate, KafkaTopicsProperties topics) {
         this.deadLetterTemplate = deadLetterTemplate;
         this.topics = topics;
     }
 
+    @Override
     public void publish(List<DeadLetter> deadLetters) {
         if (deadLetters.isEmpty()) {
             return;

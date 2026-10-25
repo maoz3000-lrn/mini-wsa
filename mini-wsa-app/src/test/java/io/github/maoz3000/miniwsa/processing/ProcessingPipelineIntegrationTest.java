@@ -99,7 +99,7 @@ class ProcessingPipelineIntegrationTest {
 
         List<ConsumerRecord<String, byte[]>> letters = pollDeadLetters(Set.of(unreadableKey, badStatus.event().eventId()));
         assertThat(letters).extracting(ConsumerRecord::key, r -> new String(r.headers()
-                        .lastHeader(DeadLetterPublisher.REASON_HEADER).value(), StandardCharsets.UTF_8))
+                        .lastHeader(KafkaDeadLetterSink.REASON_HEADER).value(), StandardCharsets.UTF_8))
                 .containsExactlyInAnyOrder(
                         tuple(unreadableKey, "DESERIALIZATION"),
                         tuple(badStatus.event().eventId(), "ROW_VALIDATION"));

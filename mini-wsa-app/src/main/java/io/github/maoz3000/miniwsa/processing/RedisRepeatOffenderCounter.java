@@ -24,7 +24,7 @@ import java.util.List;
  */
 @Component
 @ConditionalOnRole(Role.PROCESSING)
-public class RepeatOffenderWindow {
+public class RedisRepeatOffenderCounter implements RepeatOffenderCounter {
 
     private static final String SCRIPT_LOCATION = "redis/repeat-offender-window.lua";
 
@@ -32,16 +32,13 @@ public class RepeatOffenderWindow {
     private final RepeatOffenderProperties properties;
     private final byte[] script;
 
-    public RepeatOffenderWindow(StringRedisTemplate redis, RepeatOffenderProperties properties) {
+    public RedisRepeatOffenderCounter(StringRedisTemplate redis, RepeatOffenderProperties properties) {
         this.redis = redis;
         this.properties = properties;
         this.script = loadScript();
     }
 
-    /**
-     * Records the events and returns, in the same order, how many earlier events of the same client IP fall in
-     * each event's window. Callers should pass events sorted by timestamp.
-     */
+    @Override
     public List<Long> recordAndCountPrior(List<DlrEvent> events) {
         try {
             return redis.executePipelined((RedisCallback<Object>) connection -> {

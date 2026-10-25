@@ -24,7 +24,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-class DeadLetterPublisherTest {
+class KafkaDeadLetterSinkTest {
 
     private static final DeadLetter LETTER = new DeadLetter("evt-1", "{\"raw\":true}".getBytes(StandardCharsets.UTF_8),
             DeadLetterReason.ROW_VALIDATION, "statusCode out of UInt16 range", "dlr-raw", 3, 42L);
@@ -32,7 +32,7 @@ class DeadLetterPublisherTest {
     @SuppressWarnings("unchecked")
     private final KafkaTemplate<String, byte[]> template = mock(KafkaTemplate.class);
 
-    private final DeadLetterPublisher publisher = new DeadLetterPublisher(template, PropertiesFixtures.kafkaTopics());
+    private final KafkaDeadLetterSink publisher = new KafkaDeadLetterSink(template, PropertiesFixtures.kafkaTopics());
 
     @Test
     @SuppressWarnings("unchecked")
@@ -49,7 +49,7 @@ class DeadLetterPublisherTest {
         assertThat(record.topic()).isEqualTo("dlr-raw.DLT");
         assertThat(record.key()).isEqualTo("evt-1");
         assertThat(record.value()).isEqualTo(LETTER.value());
-        assertThat(new String(headers.get(DeadLetterPublisher.REASON_HEADER), StandardCharsets.UTF_8)).isEqualTo("ROW_VALIDATION");
+        assertThat(new String(headers.get(KafkaDeadLetterSink.REASON_HEADER), StandardCharsets.UTF_8)).isEqualTo("ROW_VALIDATION");
         assertThat(new String(headers.get(KafkaHeaders.DLT_EXCEPTION_MESSAGE), StandardCharsets.UTF_8))
                 .isEqualTo("statusCode out of UInt16 range");
         assertThat(new String(headers.get(KafkaHeaders.DLT_ORIGINAL_TOPIC), StandardCharsets.UTF_8)).isEqualTo("dlr-raw");
