@@ -19,19 +19,20 @@ import java.util.concurrent.TimeoutException;
  */
 @Component
 @ConditionalOnRole(Role.INGEST)
-public class DlrEventPublisher {
+public class KafkaEventPublisher implements EventPublisher {
 
     private final KafkaTemplate<String, IngestedEvent> kafkaTemplate;
     private final KafkaTopicsProperties topics;
     private final IngestProperties properties;
 
-    public DlrEventPublisher(KafkaTemplate<String, IngestedEvent> kafkaTemplate, KafkaTopicsProperties topics,
-                             IngestProperties properties) {
+    public KafkaEventPublisher(KafkaTemplate<String, IngestedEvent> kafkaTemplate, KafkaTopicsProperties topics,
+                               IngestProperties properties) {
         this.kafkaTemplate = kafkaTemplate;
         this.topics = topics;
         this.properties = properties;
     }
 
+    @Override
     public void publish(List<IngestedEvent> events) {
         CompletableFuture<?>[] sends = events.stream()
                 .map(e -> kafkaTemplate.send(topics.topic(), e.event().eventId(), e))

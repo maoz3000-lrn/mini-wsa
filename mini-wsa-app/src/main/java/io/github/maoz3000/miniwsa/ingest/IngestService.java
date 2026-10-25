@@ -22,10 +22,10 @@ public class IngestService {
 
     private final IngestPayloadParser parser;
     private final IngestEventValidator validator;
-    private final DlrEventPublisher publisher;
+    private final EventPublisher publisher;
     private final Clock clock;
 
-    public IngestService(IngestPayloadParser parser, IngestEventValidator validator, DlrEventPublisher publisher,
+    public IngestService(IngestPayloadParser parser, IngestEventValidator validator, EventPublisher publisher,
                          Clock clock) {
         this.parser = parser;
         this.validator = validator;

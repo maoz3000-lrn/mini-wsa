@@ -21,7 +21,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class DlrEventPublisherTest {
+class KafkaEventPublisherTest {
 
     private static final IngestedEvent FIRST = new IngestedEvent(validEvent(), EVENT_TIME);
     private static final IngestedEvent SECOND =
@@ -30,7 +30,8 @@ class DlrEventPublisherTest {
     @SuppressWarnings("unchecked")
     private final KafkaTemplate<String, IngestedEvent> kafkaTemplate = mock(KafkaTemplate.class);
 
-    private final DlrEventPublisher publisher = new DlrEventPublisher(kafkaTemplate, PropertiesFixtures.kafkaTopics(),
+    private final KafkaEventPublisher publisher = new KafkaEventPublisher(kafkaTemplate,
+            PropertiesFixtures.kafkaTopics(),
             new IngestProperties(DataSize.ofMegabytes(5), 1000, Duration.ofMinutes(5), Duration.ofMillis(200)));
 
     @Test
