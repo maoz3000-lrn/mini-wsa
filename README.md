@@ -92,13 +92,19 @@ Every processing step is idempotent, so on any failure the whole batch is simply
 ### Code layout (`mini-wsa-app`)
 | Package | Contents |
 |---|---|
-| `ingest` | Controller, payload parser, validator, size filter, Kafka publisher |
-| `processing` | Batch consumer, enrichment, attack-type classifier, threat-score calculator, Redis window, dead-letter publisher, metrics |
+| `ingest` | Controller (parses and validates the payload), `IngestService` (stamps `receivedAt`, publishes), `EventPublisher` and its Kafka implementation, size filter |
+| `processing` | Kafka batch consumer, `BatchProcessingService` (enrich, store, report what could not be stored), enrichment, attack-type classifier, threat-score calculator, `RepeatOffenderCounter` and `DeadLetterSink` with their Redis and Kafka implementations, metrics |
 | `storage` | Repository interfaces (`EnrichedEventWriter`, `EventAnalyticsReader`) and their ClickHouse implementations, schema |
-| `analytics` | Stats and samples controllers/services, cursor paging |
-| `domain` | Immutable records and enums (scores and labels live on the enums) |
-| `api` | Response DTOs, RFC 9457 error handling |
+| `analytics` | Stats and samples controllers, services returning business results (`StatsSummary`, `SamplesResult`), response mappers, cursor paging |
+| `domain` | Immutable records and enums with no framework dependencies; constructors guard the fields processing relies on |
+| `api` | Request and response DTOs (`DlrEventRequest` carries the ingest validation rules), RFC 9457 error handling |
 | `config` | Roles, clock, role-based health defaults |
+
+The layering is enforced by [`ArchitectureTest`](mini-wsa-app/src/test/java/io/github/maoz3000/miniwsa/ArchitectureTest.java) (ArchUnit):
+- services do not use API types;
+- the domain depends on nothing else;
+- JDBC, Kafka and Redis clients are used only by the `ClickHouse*`, `Kafka*` and `Redis*` adapters and configuration;
+- Kafka consumer records stay in the listener.
 
 ## Storage choice: ClickHouse
 
@@ -142,8 +148,9 @@ JPA/Hibernate assumes transactions, row-by-row writes and mutable entities. Clic
 ```bash
 mvn clean verify
 ```
-This runs about 210 tests:
+This runs about 310 tests:
 - unit tests: classification, scoring, validation, the Redis window, row mapping, cursor paging, the generator
+- architecture rules (ArchUnit) for the dependencies between layers
 - integration tests with real Kafka, Redis and ClickHouse containers, including an end-to-end test through the REST API
 
 ### Run with Docker Compose
@@ -234,15 +241,21 @@ For a batch, send a JSON array of such objects, or a file written by the generat
 
 | Field(s) | Rule |
 |---|---|
-| `eventId`, `policyId`, `clientIp`, `hostname`, `path`, `method`, `rule.id`, `rule.name` | Required, non-blank, with length limits |
-| `timestamp` | Required, ISO-8601 instant, at most 5 minutes ahead of server time (`miniwsa.ingest.max-future-skew`) |
+| `eventId` | Required, at most 128 characters, printable ASCII without spaces (it is the Kafka key and the deduplication key) |
+| `policyId`, `rule.id`, `rule.name` | Required, non-blank, with length limits |
+| `timestamp` | Required, ISO-8601 instant, not before `1900-01-01T00:00:00Z` (the range ClickHouse can store), at most 5 minutes ahead of server time (`miniwsa.ingest.max-future-skew`). Older events are accepted on purpose, for backfills and replays |
 | `configId` | Required, positive |
-| `clientIp` | IPv4 dotted quad or IPv6 literal |
+| `clientIp` | Required, IPv4 dotted quad or IPv6 literal |
+| `hostname` | Required, a host name or IP literal (IPv6 in brackets), optionally with `:port` |
+| `path` | Required, at most 2048 characters, starting with `/`, exactly `*`, or an absolute `http(s)://` URL. Kept as sent (not decoded) |
+| `method` | Required, an HTTP method token. Any method is accepted (`PROPFIND`, junk methods from scanners), not only a fixed list |
 | `statusCode` | Required, 100–599 |
 | `rule.severity` | `CRITICAL`, `HIGH`, `MEDIUM`, `LOW` |
 | `rule.category` | `INJECTION`, `XSS`, `PROTOCOL_VIOLATION`, `DATA_LEAKAGE`, `BOT`, `DOS`, `RATE_LIMIT` |
 | `action` | `DENY`, `ALERT`, `MONITOR` |
-| `userAgent`, `rule.message`, `geoLocation`, `requestSize`, `responseSize` | Optional; sizes must not be negative |
+| `geoLocation.country` | Optional, an upper-case ISO 3166-1 alpha-2 code such as `US` |
+| `userAgent`, `rule.message`, `geoLocation.city`, `requestSize`, `responseSize` | Optional; length limits; sizes must not be negative |
+| All text fields | Valid Unicode: unpaired UTF-16 surrogates such as `"\ud800"` are rejected |
 
 Unknown fields are ignored. For each event, every constraint violation is reported. A value that cannot be parsed at all (wrong type, unknown enum value, malformed timestamp) is reported as the first such problem of that event.
 
@@ -627,6 +640,13 @@ An in-JVM "known offender" cache from the original design was dropped. Being an 
 
 ### Ingest
 - **All-or-nothing validation** gives clients one clear answer per request and keeps invalid data out of Kafka.
+- **Validation is split by layer.**
+  - The request contract (formats, lengths, enums) lives on `DlrEventRequest`.
+  - The domain records only guard what processing dereferences.
+  - Storage only checks that values fit their columns.
+
+  The domain guards also protect against records written to `dlr-raw` without going through the API: one with, for example, a null rule fails deserialization and is dead-lettered as `DESERIALIZATION` instead of being retried forever.
+- **Every value that storage would refuse is rejected at ingest**, such as timestamps before 1900 or unpaired surrogates. A 201 therefore never ends in a silent dead letter. There is deliberately no limit on how old an event may be: backfills must be accepted and score like live data.
 - **201 only after Kafka acknowledged every record**, which costs a few milliseconds. A fire-and-forget design would answer in under a millisecond, but a crash or broker outage would lose batches already confirmed with 201. It would not even stay fast, since `send()` blocks once the producer buffer is full. Waiting is cheap on virtual threads.
 - **A 503 after a partial publish** makes the client resend the whole batch. The already-published events become duplicates, which deduplication removes.
 
