@@ -157,9 +157,9 @@ This runs about 310 tests:
 ```bash
 docker compose up -d --build --wait       # infrastructure + app (all roles) on :${APP_PORT:-8080}
 docker compose logs -f app
-docker compose down                        # stop; data is kept in named volumes
-docker compose down -v                     # stop and delete all data
 ```
+To stop or reset the stack, see [Tear down](#tear-down).
+
 Defaults (ports, credentials, partitions, replicas) live in [`.env`](.env).
 
 ### Run the app from the IDE or Maven
@@ -195,6 +195,23 @@ A fixed `--seed` reproduces the same data. `--out` writes `batch-NNNNN.json` fil
 | `--seed` | random | Reproducible output |
 | `--concurrency` | 4 | Parallel POSTs |
 | `--out` | (none) | Write files instead of POSTing |
+
+### Tear down
+Kafka topics and consumer offsets, ClickHouse events and the Redis window live in named volumes. They survive `up`, `up --build` and a plain `down`, so a rebuilt stack still holds the earlier messages and committed offsets (see [Data and restarts](#data-and-restarts)).
+
+```bash
+docker compose down                                   # stop and remove containers; data is kept
+docker compose -f docker-compose.yml -f docker-compose.split.yml --profile tools \
+  down -v --remove-orphans                            # full reset: delete containers, network and all volumes
+```
+Pass the split file and the `tools` profile so containers from the split layout or a generator run are removed too. `docker volume ls | grep mini-wsa` prints nothing after a full reset.
+
+Reset only Kafka (topics, offsets, DLT) and keep ClickHouse and Redis:
+```bash
+docker compose down
+docker volume rm mini-wsa_kafka-data
+docker compose up -d --build --wait                   # kafka-init recreates the topics
+```
 
 ## API reference
 
