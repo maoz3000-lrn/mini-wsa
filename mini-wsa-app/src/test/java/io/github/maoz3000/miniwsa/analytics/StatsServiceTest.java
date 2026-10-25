@@ -1,10 +1,5 @@
 package io.github.maoz3000.miniwsa.analytics;
 
-import io.github.maoz3000.miniwsa.api.StatsSummaryResponse;
-import io.github.maoz3000.miniwsa.api.StatsSummaryResponse.CategorySummary;
-import io.github.maoz3000.miniwsa.api.StatsSummaryResponse.TimeRange;
-import io.github.maoz3000.miniwsa.api.StatsSummaryResponse.TopAttacker;
-import io.github.maoz3000.miniwsa.api.StatsSummaryResponse.TopPath;
 import io.github.maoz3000.miniwsa.domain.Action;
 import io.github.maoz3000.miniwsa.domain.RuleCategory;
 import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
@@ -12,6 +7,7 @@ import io.github.maoz3000.miniwsa.domain.query.AttackerStats;
 import io.github.maoz3000.miniwsa.domain.query.CategoryStats;
 import io.github.maoz3000.miniwsa.domain.query.EventFilter;
 import io.github.maoz3000.miniwsa.domain.query.PathStats;
+import io.github.maoz3000.miniwsa.domain.query.StatsSummary;
 import io.github.maoz3000.miniwsa.domain.query.SummaryCounts;
 import io.github.maoz3000.miniwsa.storage.EventAnalyticsReader;
 import org.junit.jupiter.api.Test;
@@ -35,28 +31,35 @@ class StatsServiceTest {
     private final StatsService service = new StatsService(reader);
 
     @Test
-    void buildsZeroFilledRoundedSummaryWithTopTen() {
-        when(reader.summaryCounts(FILTER)).thenReturn(new SummaryCounts(3,
-                List.of(new CategoryStats(RuleCategory.INJECTION, 2, 72.333333), new CategoryStats(RuleCategory.BOT, 1, 45.05)),
+    void buildsZeroFilledSummaryWithTopTen() {
+        CategoryStats injection = new CategoryStats(RuleCategory.INJECTION, 2, 72.333333);
+        CategoryStats bot = new CategoryStats(RuleCategory.BOT, 1, 45.05);
+        AttackerStats attacker = new AttackerStats("203.0.113.42", 2, 81.25);
+        PathStats path = new PathStats("/api/v1/login", 2);
+        when(reader.summaryCounts(FILTER)).thenReturn(new SummaryCounts(3, List.of(injection, bot),
                 Map.of(Action.DENY, 2L, Action.MONITOR, 1L)));
-        when(reader.topAttackers(FILTER, StatsService.TOP_N)).thenReturn(List.of(new AttackerStats("203.0.113.42", 2, 81.25)));
-        when(reader.topTargetedPaths(FILTER, StatsService.TOP_N)).thenReturn(List.of(new PathStats("/api/v1/login", 2)));
+        when(reader.topAttackers(FILTER, StatsService.TOP_N)).thenReturn(List.of(attacker));
+        when(reader.topTargetedPaths(FILTER, StatsService.TOP_N)).thenReturn(List.of(path));
 
-        assertThat(service.summary(FILTER)).isEqualTo(new StatsSummaryResponse(
-                14227L,
-                new TimeRange(FILTER.from(), FILTER.to()),
+        StatsSummary summary = service.summary(FILTER);
+
+        assertThat(summary).isEqualTo(new StatsSummary(
+                FILTER,
                 3,
                 Map.ofEntries(
-                        entry(RuleCategory.INJECTION, new CategorySummary(2, 72.3)),
-                        entry(RuleCategory.XSS, new CategorySummary(0, 0.0)),
-                        entry(RuleCategory.PROTOCOL_VIOLATION, new CategorySummary(0, 0.0)),
-                        entry(RuleCategory.DATA_LEAKAGE, new CategorySummary(0, 0.0)),
-                        entry(RuleCategory.BOT, new CategorySummary(1, 45.1)),
-                        entry(RuleCategory.DOS, new CategorySummary(0, 0.0)),
-                        entry(RuleCategory.RATE_LIMIT, new CategorySummary(0, 0.0))),
+                        entry(RuleCategory.INJECTION, injection),
+                        entry(RuleCategory.XSS, new CategoryStats(RuleCategory.XSS, 0, 0.0)),
+                        entry(RuleCategory.PROTOCOL_VIOLATION,
+                                new CategoryStats(RuleCategory.PROTOCOL_VIOLATION, 0, 0.0)),
+                        entry(RuleCategory.DATA_LEAKAGE, new CategoryStats(RuleCategory.DATA_LEAKAGE, 0, 0.0)),
+                        entry(RuleCategory.BOT, bot),
+                        entry(RuleCategory.DOS, new CategoryStats(RuleCategory.DOS, 0, 0.0)),
+                        entry(RuleCategory.RATE_LIMIT, new CategoryStats(RuleCategory.RATE_LIMIT, 0, 0.0))),
                 Map.of(Action.DENY, 2L, Action.ALERT, 0L, Action.MONITOR, 1L),
-                List.of(new TopAttacker("203.0.113.42", 2, 81.3)),
-                List.of(new TopPath("/api/v1/login", 2))));
+                List.of(attacker),
+                List.of(path)));
+        assertThat(summary.byCategory().keySet()).containsExactly(RuleCategory.values());
+        assertThat(summary.byAction().keySet()).containsExactly(Action.values());
     }
 
     @Test

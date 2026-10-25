@@ -1,9 +1,9 @@
 package io.github.maoz3000.miniwsa.analytics;
 
 import io.github.maoz3000.miniwsa.api.ApiProperties;
-import io.github.maoz3000.miniwsa.api.SampleEventResponse;
-import io.github.maoz3000.miniwsa.api.SamplesPage;
 import io.github.maoz3000.miniwsa.domain.Action;
+import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
+import io.github.maoz3000.miniwsa.domain.IngestedEvent;
 import io.github.maoz3000.miniwsa.domain.RuleCategory;
 import io.github.maoz3000.miniwsa.domain.query.EventFilter;
 import io.github.maoz3000.miniwsa.domain.query.PageRequest;
@@ -36,8 +36,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @EnableConfigurationProperties(ApiProperties.class)
 class SamplesControllerTest {
 
-    private static final SampleEventResponse SAMPLE =
-            new SampleEventResponse(validEvent(), EVENT_TIME.plusSeconds(2), "SQL/Command Injection", 75);
+    private static final EnrichedEvent SAMPLE = new EnrichedEvent(
+            new IngestedEvent(validEvent(), EVENT_TIME.plusSeconds(2)), "SQL/Command Injection", 75);
 
     @Autowired
     private MockMvc mockMvc;
@@ -47,8 +47,7 @@ class SamplesControllerTest {
 
     @Test
     void returnsFlattenedEnrichedEventsWithTotal() throws Exception {
-        when(samplesService.samples(any(), any())).thenReturn(
-                new SamplesService.Result(new SamplesPage(42, 20, 0, List.of(SAMPLE)), Optional.empty()));
+        when(samplesService.samples(any(), any())).thenReturn(new SamplesResult(42, List.of(SAMPLE), Optional.empty()));
 
         String expectedEvent = validEventJson().stripTrailing().replaceFirst("}$", """
                 , "receivedAt": "2026-05-20T14:32:12Z", "attackType": "SQL/Command Injection", "threatScore": 75}""");
@@ -64,8 +63,8 @@ class SamplesControllerTest {
     @Test
     void passesAllFiltersAndLinksToNextPageKeepingThem() throws Exception {
         Instant to = Instant.parse("2026-05-20T10:00:05.120Z");
-        when(samplesService.samples(any(), any())).thenReturn(new SamplesService.Result(
-                new SamplesPage(42, 5, 0, List.of(SAMPLE)), Optional.of(new PageCursor(to, 3))));
+        when(samplesService.samples(any(), any())).thenReturn(
+                new SamplesResult(42, List.of(SAMPLE), Optional.of(new PageCursor(to, 3))));
 
         mockMvc.perform(get("/v1/events/samples?configId=14227&from=2026-05-20T00:00:00Z&category=INJECTION"
                         + "&action=DENY&limit=5"))

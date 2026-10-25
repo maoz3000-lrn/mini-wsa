@@ -52,6 +52,7 @@ public class StatsController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @Parameter(description = "Inclusive upper bound on the event timestamp (ISO-8601)", example = "2026-05-21T00:00:00Z")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
-        return statsService.summary(EventFilter.builder().configId(configId).from(from).to(to).build());
+        return StatsResponseMapper.toResponse(
+                statsService.summary(EventFilter.builder().configId(configId).from(from).to(to).build()));
     }
 }

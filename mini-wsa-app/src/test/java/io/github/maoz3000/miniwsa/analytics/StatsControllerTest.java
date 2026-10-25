@@ -1,9 +1,9 @@
 package io.github.maoz3000.miniwsa.analytics;
 
 import io.github.maoz3000.miniwsa.api.ApiProperties;
-import io.github.maoz3000.miniwsa.api.StatsSummaryResponse;
 import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 import io.github.maoz3000.miniwsa.domain.query.EventFilter;
+import io.github.maoz3000.miniwsa.domain.query.StatsSummary;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -38,8 +38,8 @@ class StatsControllerTest {
     void passesOptionalFiltersAndRendersSummary() throws Exception {
         EventFilter filter = EventFilter.builder().configId(14227L)
                 .from(Instant.parse("2026-05-20T00:00:00Z")).to(Instant.parse("2026-05-20T23:59:59Z")).build();
-        when(statsService.summary(filter)).thenReturn(new StatsSummaryResponse(14227L,
-                new StatsSummaryResponse.TimeRange(filter.from(), filter.to()), 0, Map.of(), Map.of(), List.of(), List.of()));
+        when(statsService.summary(filter))
+                .thenReturn(new StatsSummary(filter, 0, Map.of(), Map.of(), List.of(), List.of()));
 
         mockMvc.perform(get("/v1/stats/summary")
                         .param("configId", "14227").param("from", "2026-05-20T00:00:00Z").param("to", "2026-05-20T23:59:59Z"))
@@ -52,8 +52,8 @@ class StatsControllerTest {
 
     @Test
     void aggregatesAcrossConfigurationsWithoutParameters() throws Exception {
-        when(statsService.summary(any())).thenReturn(new StatsSummaryResponse(null,
-                new StatsSummaryResponse.TimeRange(null, null), 0, Map.of(), Map.of(), List.of(), List.of()));
+        when(statsService.summary(any())).thenReturn(
+                new StatsSummary(EventFilter.unfiltered(), 0, Map.of(), Map.of(), List.of(), List.of()));
 
         mockMvc.perform(get("/v1/stats/summary")).andExpect(status().isOk());
 

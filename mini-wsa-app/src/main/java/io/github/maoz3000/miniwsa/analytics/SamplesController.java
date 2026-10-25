@@ -74,10 +74,11 @@ public class SamplesController {
             @Parameter(description = "Events to skip; with a Link cursor only the events tied at the boundary timestamp")
             @RequestParam(defaultValue = "0") @Min(0) int offset) {
         EventFilter filter = new EventFilter(configId, from, to, category, action);
-        SamplesService.Result result = samplesService.samples(filter, new PageRequest(limit, offset));
+        PageRequest page = new PageRequest(limit, offset);
+        SamplesResult result = samplesService.samples(filter, page);
         ResponseEntity.BodyBuilder response = ResponseEntity.ok();
         result.next().ifPresent(next -> response.header(HttpHeaders.LINK, nextLink(next)));
-        return response.body(result.page());
+        return response.body(SamplesResponseMapper.toResponse(result, page));
     }
 
     private static String nextLink(PageCursor next) {
