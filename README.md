@@ -593,7 +593,11 @@ Each component keeps its data in a named volume:
 Shutdown is graceful: in-flight HTTP requests finish, the consumer completes and commits its current batch, and `stop_grace_period` is 30 s. Even a hard kill loses nothing that got a 201: unfinished batches are simply delivered again.
 
 ### Configuration
-All settings are in [`application.yml`](mini-wsa-app/src/main/resources/application.yml), with comments, and can be overridden by environment variables, e.g. `miniwsa.ingest.max-batch-size` → `MINIWSA_INGEST_MAXBATCHSIZE`. Invalid values fail at startup.
+Configuration has two layers. **Docker Compose settings** live in [`.env`](.env): Compose loads it automatically from the repo root and uses it only to fill the `${VAR}` placeholders in `docker-compose.yml` and `docker-compose.split.yml` (host ports, ClickHouse credentials, topic partitions and retention, replica counts, `JAVA_OPTS`, the Kafka cluster id). Some of these reach the app as container environment variables (e.g. `CLICKHOUSE_USER`), which override `application.yml`. The app itself never reads `.env`, so when it runs from the IDE or Maven it uses the `application.yml` defaults.
+
+To override `.env` without editing it, export the variable in your shell (shell values win over `.env`), or put it in a git-ignored `.env.local` and pass both files: `docker compose --env-file .env --env-file .env.local up -d --build --wait`. Passing only `--env-file .env.local` skips `.env`, so every variable missing from it comes out empty.
+
+**Application settings** are all in [`application.yml`](mini-wsa-app/src/main/resources/application.yml), with comments, and can be overridden by environment variables, e.g. `miniwsa.ingest.max-batch-size` → `MINIWSA_INGEST_MAXBATCHSIZE`. Invalid values fail at startup.
 
 | Setting | Default | Purpose |
 |---|---|---|
