@@ -746,3 +746,5 @@ Built incrementally, with one tag per milestone (`git log --oneline --decorate`)
 | `v0.5-samples` | `GET /v1/events/samples` with cursor paging |
 | `v0.6-generator` | Traffic generator with attack waves; split deployment behind nginx |
 | `v1.0-release` | End-to-end test, documentation |
+| `v1.1-layering` | Layering refactor without contract changes: interfaces for Kafka and Redis, business results instead of DTOs from services, Kafka plumbing split from batch processing, request/response DTOs separate from the domain |
+| `v1.2-validation` | Stricter ingest validation (event id, hostname, path, method, country, Unicode text, storable timestamps), ArchUnit layering rules |
