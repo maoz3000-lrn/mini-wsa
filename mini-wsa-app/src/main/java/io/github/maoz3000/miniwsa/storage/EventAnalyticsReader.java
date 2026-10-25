@@ -1,6 +1,7 @@
 package io.github.maoz3000.miniwsa.storage;
 
 import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
+import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 import io.github.maoz3000.miniwsa.domain.query.AttackerStats;
 import io.github.maoz3000.miniwsa.domain.query.EventFilter;
 import io.github.maoz3000.miniwsa.domain.query.PageRequest;

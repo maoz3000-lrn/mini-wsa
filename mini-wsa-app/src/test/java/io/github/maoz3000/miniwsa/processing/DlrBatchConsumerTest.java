@@ -2,11 +2,11 @@ package io.github.maoz3000.miniwsa.processing;
 
 import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
 import io.github.maoz3000.miniwsa.domain.IngestedEvent;
+import io.github.maoz3000.miniwsa.domain.error.PermanentStorageException;
+import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 import io.github.maoz3000.miniwsa.storage.EnrichedEventWriter;
-import io.github.maoz3000.miniwsa.storage.PermanentStorageException;
 import io.github.maoz3000.miniwsa.storage.RejectedEvent;
 import io.github.maoz3000.miniwsa.storage.SaveResult;
-import io.github.maoz3000.miniwsa.storage.TransientStorageException;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.BeforeEach;

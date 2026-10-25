@@ -1,6 +1,8 @@
 package io.github.maoz3000.miniwsa.storage;
 
 import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
+import io.github.maoz3000.miniwsa.domain.error.PermanentStorageException;
+import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 
 import java.util.List;
 

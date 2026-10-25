@@ -7,13 +7,13 @@ import io.github.maoz3000.miniwsa.api.StatsSummaryResponse.TopAttacker;
 import io.github.maoz3000.miniwsa.api.StatsSummaryResponse.TopPath;
 import io.github.maoz3000.miniwsa.domain.Action;
 import io.github.maoz3000.miniwsa.domain.RuleCategory;
+import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 import io.github.maoz3000.miniwsa.domain.query.AttackerStats;
 import io.github.maoz3000.miniwsa.domain.query.CategoryStats;
 import io.github.maoz3000.miniwsa.domain.query.EventFilter;
 import io.github.maoz3000.miniwsa.domain.query.PathStats;
 import io.github.maoz3000.miniwsa.domain.query.SummaryCounts;
 import io.github.maoz3000.miniwsa.storage.EventAnalyticsReader;
-import io.github.maoz3000.miniwsa.storage.TransientStorageException;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;

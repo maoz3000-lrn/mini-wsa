@@ -1,6 +1,8 @@
 package io.github.maoz3000.miniwsa.storage;
 
 import com.clickhouse.client.api.ServerException;
+import io.github.maoz3000.miniwsa.domain.error.PermanentStorageException;
+import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;

@@ -1,10 +1,10 @@
 package io.github.maoz3000.miniwsa.api;
 
+import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 import io.github.maoz3000.miniwsa.domain.query.InvalidQueryException;
 import io.github.maoz3000.miniwsa.ingest.EventPublishException;
 import io.github.maoz3000.miniwsa.ingest.EventValidationException;
 import io.github.maoz3000.miniwsa.ingest.PayloadTooLargeException;
-import io.github.maoz3000.miniwsa.storage.TransientStorageException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.NestedExceptionUtils;
 import org.springframework.http.HttpHeaders;

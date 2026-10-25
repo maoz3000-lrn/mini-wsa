@@ -2,8 +2,8 @@ package io.github.maoz3000.miniwsa.analytics;
 
 import io.github.maoz3000.miniwsa.api.ApiProperties;
 import io.github.maoz3000.miniwsa.api.StatsSummaryResponse;
+import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 import io.github.maoz3000.miniwsa.domain.query.EventFilter;
-import io.github.maoz3000.miniwsa.storage.TransientStorageException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;

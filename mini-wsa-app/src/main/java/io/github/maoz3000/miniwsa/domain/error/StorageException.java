@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.storage;
+package io.github.maoz3000.miniwsa.domain.error;
 
 /**
  * A store (ClickHouse, Redis) failed. Subclasses tell callers whether retrying can help.

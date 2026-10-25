@@ -5,6 +5,7 @@ import io.github.maoz3000.miniwsa.config.Role;
 import io.github.maoz3000.miniwsa.domain.Action;
 import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
 import io.github.maoz3000.miniwsa.domain.RuleCategory;
+import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 import io.github.maoz3000.miniwsa.domain.query.AttackerStats;
 import io.github.maoz3000.miniwsa.domain.query.CategoryStats;
 import io.github.maoz3000.miniwsa.domain.query.EventFilter;

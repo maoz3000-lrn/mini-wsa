@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.storage;
+package io.github.maoz3000.miniwsa.domain.error;
 
 /**
  * The store rejected the data itself; retrying the same batch will fail again.

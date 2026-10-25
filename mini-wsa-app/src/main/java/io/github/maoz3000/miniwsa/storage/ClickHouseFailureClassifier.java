@@ -1,6 +1,9 @@
 package io.github.maoz3000.miniwsa.storage;
 
 import com.clickhouse.client.api.ServerException;
+import io.github.maoz3000.miniwsa.domain.error.PermanentStorageException;
+import io.github.maoz3000.miniwsa.domain.error.StorageException;
+import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 
 import java.sql.SQLException;
 import java.util.Optional;
