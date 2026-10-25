@@ -57,6 +57,10 @@ public record DlrEventRequest(
     static final String HTTP_TOKEN = "[!#$%&'*+.^_`|~0-9A-Za-z-]+";
     static final String HTTP_TOKEN_MESSAGE = "must be an HTTP method token";
 
+    // grouped by in the statistics: "us" and "US" must not become two countries
+    static final String COUNTRY_CODE = "[A-Z]{2}";
+    static final String COUNTRY_CODE_MESSAGE = "must be an ISO 3166-1 alpha-2 code, e.g. US";
+
     /**
      * Call only on a request that passed validation: the domain event rejects missing required fields.
      */
@@ -81,7 +85,7 @@ public record DlrEventRequest(
     }
 
     public record GeoLocationRequest(
-            @Size(max = 2) String country,
+            @Pattern(regexp = COUNTRY_CODE, message = COUNTRY_CODE_MESSAGE) String country,
             @Size(max = 128) String city) {
 
         GeoLocation toDomain() {

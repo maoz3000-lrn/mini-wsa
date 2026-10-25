@@ -78,7 +78,10 @@ class DlrEventRequestTest {
                         List.of("index.html", "api/v1/login", " /login", "ftp://example.com/x", "**")),
                 cases("method", (r, v) -> r.toBuilder().method(v).build(),
                         List.of("GET", "POST", "PROPFIND", "M-SEARCH", "get", "X_DEBUG"),
-                        List.of("GET ", "GE T", "GET/1.1", "(GET)", "GÉT")))
+                        List.of("GET ", "GE T", "GET/1.1", "(GET)", "GÉT")),
+                cases("geoLocation.country", (r, v) -> r.toBuilder().geoLocation(new GeoLocationRequest(v, "City")).build(),
+                        List.of("US", "CN", "IL"),
+                        List.of("us", "U", "USA", "U1", "")))
                 .flatMap(s -> s);
     }
 
