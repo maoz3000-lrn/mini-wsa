@@ -28,13 +28,14 @@ public record DlrEventRequest(
         @NotBlank @Size(max = 128) @Pattern(regexp = PRINTABLE_ASCII, message = PRINTABLE_ASCII_MESSAGE) String eventId,
         @NotNull Instant timestamp,
         @NotNull @Positive Long configId,
-        @NotBlank @Size(max = 64) String policyId,
+        @NotBlank @Size(max = 64) @WellFormedText String policyId,
         @NotBlank @IpAddress String clientIp,
         @NotBlank @Size(max = 255) @Pattern(regexp = HOST, message = HOST_MESSAGE) String hostname,
-        @NotBlank @Size(max = 2048) @Pattern(regexp = REQUEST_TARGET, message = REQUEST_TARGET_MESSAGE) String path,
+        @NotBlank @Size(max = 2048) @Pattern(regexp = REQUEST_TARGET, message = REQUEST_TARGET_MESSAGE) @WellFormedText
+        String path,
         @NotBlank @Size(max = 16) @Pattern(regexp = HTTP_TOKEN, message = HTTP_TOKEN_MESSAGE) String method,
         @NotNull @Min(100) @Max(599) Integer statusCode,
-        @Size(max = 1024) String userAgent,
+        @Size(max = 1024) @WellFormedText String userAgent,
         @NotNull @Valid RuleRequest rule,
         @NotNull Action action,
         @Valid GeoLocationRequest geoLocation,
@@ -73,9 +74,9 @@ public record DlrEventRequest(
 
     @Builder(toBuilder = true)
     public record RuleRequest(
-            @NotBlank @Size(max = 64) String id,
-            @NotBlank @Size(max = 128) String name,
-            @Size(max = 512) String message,
+            @NotBlank @Size(max = 64) @WellFormedText String id,
+            @NotBlank @Size(max = 128) @WellFormedText String name,
+            @Size(max = 512) @WellFormedText String message,
             @NotNull RuleSeverity severity,
             @NotNull RuleCategory category) {
 
@@ -86,7 +87,7 @@ public record DlrEventRequest(
 
     public record GeoLocationRequest(
             @Pattern(regexp = COUNTRY_CODE, message = COUNTRY_CODE_MESSAGE) String country,
-            @Size(max = 128) String city) {
+            @Size(max = 128) @WellFormedText String city) {
 
         GeoLocation toDomain() {
             return new GeoLocation(country, city);

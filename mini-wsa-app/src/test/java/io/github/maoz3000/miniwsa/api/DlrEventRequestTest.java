@@ -81,7 +81,17 @@ class DlrEventRequestTest {
                         List.of("GET ", "GE T", "GET/1.1", "(GET)", "GÉT")),
                 cases("geoLocation.country", (r, v) -> r.toBuilder().geoLocation(new GeoLocationRequest(v, "City")).build(),
                         List.of("US", "CN", "IL"),
-                        List.of("us", "U", "USA", "U1", "")))
+                        List.of("us", "U", "USA", "U1", "")),
+                cases("path", (r, v) -> r.toBuilder().path("/" + v).build(),
+                        List.of("café", "😀"), List.of("login\uD800", "\uDE00x")),
+                cases("policyId", (r, v) -> r.toBuilder().policyId("pol" + v).build(),
+                        List.of("😀"), List.of("\uD800")),
+                cases("userAgent", (r, v) -> r.toBuilder().userAgent("Mozilla/5.0" + v).build(),
+                        List.of("😀"), List.of("\uD800")),
+                cases("rule.message", (r, v) -> r.toBuilder().rule(r.rule().toBuilder().message("SQLi" + v).build()).build(),
+                        List.of("😀"), List.of("\uD800")),
+                cases("geoLocation.city", (r, v) -> r.toBuilder().geoLocation(new GeoLocationRequest("CN", "Beijing" + v)).build(),
+                        List.of("😀"), List.of("\uD800")))
                 .flatMap(s -> s);
     }
 

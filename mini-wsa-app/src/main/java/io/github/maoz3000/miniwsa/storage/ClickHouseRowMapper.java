@@ -3,6 +3,7 @@ package io.github.maoz3000.miniwsa.storage;
 import io.github.maoz3000.miniwsa.domain.DlrEvent;
 import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
 import io.github.maoz3000.miniwsa.domain.GeoLocation;
+import io.github.maoz3000.miniwsa.domain.Utf16;
 
 import java.time.Instant;
 import java.util.List;
@@ -54,7 +55,7 @@ final class ClickHouseRowMapper {
                                 "statusCode out of UInt16 range"),
                         check(e.requestSize() != null && e.requestSize() < 0, "requestSize must not be negative"),
                         check(e.responseSize() != null && e.responseSize() < 0, "responseSize must not be negative"),
-                        check(textFields(enriched).anyMatch(ClickHouseRowMapper::hasLoneSurrogate),
+                        check(!textFields(enriched).allMatch(Utf16::isWellFormed),
                                 "text contains invalid UTF-16 (unpaired surrogate)"))
                 .flatMap(Optional::stream)
                 .findFirst();
@@ -79,11 +80,6 @@ final class ClickHouseRowMapper {
         return Stream.of(Stream.of(e.eventId(), e.policyId(), e.clientIp(), e.hostname(), e.path(), e.method(),
                         e.userAgent(), enriched.attackType()), ruleTexts, geoTexts)
                 .flatMap(Function.identity());
-    }
-
-    private static boolean hasLoneSurrogate(String text) {
-        // paired surrogates decode to supplementary code points; only unpaired ones remain in the surrogate range
-        return text != null && text.codePoints().anyMatch(cp -> cp >= Character.MIN_SURROGATE && cp <= Character.MAX_SURROGATE);
     }
 
     private static Optional<String> outOfRange(String field, Instant value) {
