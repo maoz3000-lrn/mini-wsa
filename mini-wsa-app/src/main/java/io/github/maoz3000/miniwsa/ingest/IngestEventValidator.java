@@ -15,6 +15,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -28,6 +29,8 @@ public class IngestEventValidator {
 
     static final String INVALID_TIMESTAMP = "must be an ISO-8601 timestamp, e.g. 2026-05-20T14:32:10Z";
     static final String INVALID_VALUE = "has an invalid value";
+    // ClickHouse DateTime64 cannot store earlier times: reject them here instead of dead-lettering after a 201
+    static final Instant EARLIEST_TIMESTAMP = Instant.parse("1900-01-01T00:00:00Z");
 
     private final ObjectMapper objectMapper;
     private final Validator validator;
@@ -57,7 +60,7 @@ public class IngestEventValidator {
         try {
             DlrEventRequest request = objectMapper.treeToValue(node, DlrEventRequest.class);
             return new Bound(request,
-                    Stream.concat(constraintErrors(index, request), skewErrors(index, request)).toList());
+                    Stream.concat(constraintErrors(index, request), timestampErrors(index, request)).toList());
         } catch (JacksonException e) {
             return new Bound(null, List.of(new EventError(index, pathOf(e), bindingMessage(e))));
         }
@@ -69,12 +72,20 @@ public class IngestEventValidator {
                 .sorted((a, b) -> a.field().compareTo(b.field()));
     }
 
-    private Stream<EventError> skewErrors(int index, DlrEventRequest request) {
-        Instant latestAllowed = clock.instant().plus(properties.maxFutureSkew());
-        return request.timestamp() != null && request.timestamp().isAfter(latestAllowed)
-                ? Stream.of(new EventError(index, "timestamp",
-                        "must not be more than " + properties.maxFutureSkew() + " ahead of server time"))
-                : Stream.empty();
+    private Stream<EventError> timestampErrors(int index, DlrEventRequest request) {
+        return Optional.ofNullable(request.timestamp())
+                .flatMap(this::timestampProblem)
+                .map(problem -> new EventError(index, "timestamp", problem))
+                .stream();
+    }
+
+    private Optional<String> timestampProblem(Instant timestamp) {
+        if (timestamp.isBefore(EARLIEST_TIMESTAMP)) {
+            return Optional.of("must not be before " + EARLIEST_TIMESTAMP);
+        }
+        return timestamp.isAfter(clock.instant().plus(properties.maxFutureSkew()))
+                ? Optional.of("must not be more than " + properties.maxFutureSkew() + " ahead of server time")
+                : Optional.empty();
     }
 
     private static String pathOf(JacksonException e) {

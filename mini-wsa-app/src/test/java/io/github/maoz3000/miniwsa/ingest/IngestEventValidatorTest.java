@@ -7,12 +7,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.function.Consumer;
@@ -58,7 +60,10 @@ class IngestEventValidatorTest {
                         new EventError(0, "clientIp", "must be a valid IPv4 or IPv6 address")),
                 Arguments.of("too far in the future",
                         (Consumer<ObjectNode>) e -> e.put("timestamp", EVENT_TIME.plus(Duration.ofMinutes(6)).toString()),
-                        new EventError(0, "timestamp", "must not be more than PT5M ahead of server time")));
+                        new EventError(0, "timestamp", "must not be more than PT5M ahead of server time")),
+                Arguments.of("before the storable range",
+                        (Consumer<ObjectNode>) e -> e.put("timestamp", "1899-12-31T23:59:59Z"),
+                        new EventError(0, "timestamp", "must not be before 1900-01-01T00:00:00Z")));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -69,12 +74,14 @@ class IngestEventValidatorTest {
                         e -> assertThat(e.errors()).containsExactly(expected));
     }
 
-    @Test
-    void acceptsTimestampWithinFutureSkew() {
-        JsonNode event = event(e -> e.put("timestamp", EVENT_TIME.plus(Duration.ofMinutes(5)).toString()));
+    // historical events are accepted (backfills); only the storable range and the future skew are limits
+    @ParameterizedTest
+    @ValueSource(strings = {"1900-01-01T00:00:00Z", "2020-01-01T00:00:00Z", "2026-05-20T14:37:10Z"})
+    void acceptsTimestampsWithinRange(String timestamp) {
+        JsonNode event = event(e -> e.put("timestamp", timestamp));
 
         assertThat(validator.validate(List.of(event))).extracting(DlrEvent::timestamp)
-                .containsExactly(EVENT_TIME.plus(Duration.ofMinutes(5)));
+                .containsExactly(Instant.parse(timestamp));
     }
 
     @Test
