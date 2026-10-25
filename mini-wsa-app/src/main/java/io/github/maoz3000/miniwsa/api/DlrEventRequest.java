@@ -11,6 +11,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
@@ -24,7 +25,7 @@ import java.util.Optional;
  */
 @Builder(toBuilder = true)
 public record DlrEventRequest(
-        @NotBlank @Size(max = 128) String eventId,
+        @NotBlank @Size(max = 128) @Pattern(regexp = PRINTABLE_ASCII, message = PRINTABLE_ASCII_MESSAGE) String eventId,
         @NotNull Instant timestamp,
         @NotNull @Positive Long configId,
         @NotBlank @Size(max = 64) String policyId,
@@ -39,6 +40,10 @@ public record DlrEventRequest(
         @Valid GeoLocationRequest geoLocation,
         @PositiveOrZero Long requestSize,
         @PositiveOrZero Long responseSize) {
+
+    // the eventId is the Kafka key and the ClickHouse deduplication key: no whitespace or control characters
+    static final String PRINTABLE_ASCII = "[\\x21-\\x7E]+";
+    static final String PRINTABLE_ASCII_MESSAGE = "must be printable ASCII without spaces";
 
     /**
      * Call only on a request that passed validation: the domain event rejects missing required fields.

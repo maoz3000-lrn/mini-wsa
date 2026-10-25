@@ -10,7 +10,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.util.List;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -59,12 +61,22 @@ class DlrEventRequestTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("invalidRequests")
     void rejectsInvalidField(String field, UnaryOperator<DlrEventRequest> mutation) {
-        Set<String> invalidFields = VALIDATOR.validate(mutation.apply(validRequest())).stream()
-                .map(ConstraintViolation::getPropertyPath)
-                .map(Object::toString)
-                .collect(Collectors.toSet());
+        assertThat(invalidFields(mutation.apply(validRequest()))).containsExactly(field);
+    }
 
-        assertThat(invalidFields).containsExactly(field);
+    static Stream<Arguments> formatRules() {
+        return Stream.of(
+                cases("eventId", (r, v) -> r.toBuilder().eventId(v).build(),
+                        List.of("evt-00132", "550e8400-e29b-41d4-a716-446655440000", "a:b/c_d.e"),
+                        List.of("evt 00132", "evt\t1", "évt-1", "evt-1\n")))
+                .flatMap(s -> s);
+    }
+
+    @ParameterizedTest(name = "{0} = \"{2}\" valid: {3}")
+    @MethodSource("formatRules")
+    void enforcesFieldFormat(String field, BiFunction<DlrEventRequest, String, DlrEventRequest> set, String value,
+                             boolean valid) {
+        assertThat(invalidFields(set.apply(validRequest(), value))).isEqualTo(valid ? Set.of() : Set.of(field));
     }
 
     @ParameterizedTest
@@ -77,5 +89,18 @@ class DlrEventRequestTest {
     @ValueSource(strings = {"256.0.0.1", "1.2.3", "example.com", "2001:db8::zz", "1.2.3.4 "})
     void rejectsNonIpValues(String ip) {
         assertThat(VALIDATOR.validate(validRequest().toBuilder().clientIp(ip).build())).hasSize(1);
+    }
+
+    private static Stream<Arguments> cases(String field, BiFunction<DlrEventRequest, String, DlrEventRequest> set,
+                                           List<String> valid, List<String> invalid) {
+        return Stream.concat(valid.stream().map(v -> Arguments.of(field, set, v, true)),
+                invalid.stream().map(v -> Arguments.of(field, set, v, false)));
+    }
+
+    private static Set<String> invalidFields(DlrEventRequest request) {
+        return VALIDATOR.validate(request).stream()
+                .map(ConstraintViolation::getPropertyPath)
+                .map(Object::toString)
+                .collect(Collectors.toSet());
     }
 }
