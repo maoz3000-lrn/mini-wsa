@@ -1,7 +1,7 @@
 package io.github.maoz3000.miniwsa.ingest;
 
 import io.github.maoz3000.miniwsa.api.ApiProperties;
-import io.github.maoz3000.miniwsa.api.IngestResponse;
+import io.github.maoz3000.miniwsa.config.ClockConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -11,11 +11,16 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.Collections;
 import java.util.List;
 
 import static io.github.maoz3000.miniwsa.fixtures.DlrEventFixtures.EVENT_TIME;
+import static io.github.maoz3000.miniwsa.fixtures.DlrEventFixtures.validEvent;
 import static io.github.maoz3000.miniwsa.fixtures.DlrEventFixtures.validEventJson;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -23,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(IngestController.class)
-@Import(IngestWebConfig.class)
+@Import({IngestWebConfig.class, IngestPayloadParser.class, IngestEventValidator.class, ClockConfig.class})
 @EnableConfigurationProperties({ApiProperties.class, IngestProperties.class})
 class IngestControllerTest {
 
@@ -35,7 +40,7 @@ class IngestControllerTest {
 
     @Test
     void returns201WithAcceptedCount() throws Exception {
-        when(ingestService.ingest(any())).thenReturn(new IngestResponse(1, EVENT_TIME));
+        when(ingestService.ingest(List.of(validEvent()))).thenReturn(new IngestResult(1, EVENT_TIME));
 
         mockMvc.perform(ingest(validEventJson()))
                 .andExpect(status().isCreated())
@@ -45,26 +50,33 @@ class IngestControllerTest {
     }
 
     @Test
-    void returns400ProblemWithItemizedErrors() throws Exception {
-        when(ingestService.ingest(any())).thenThrow(new EventValidationException(List.of(
-                new EventError(0, "action", "must be one of [DENY, ALERT, MONITOR]"),
-                EventError.ofRequest("whole request problem"))));
+    void returns400ProblemWithItemizedErrorsWithoutIngesting() throws Exception {
+        String invalidAction = validEventJson().replace("\"action\": \"DENY\"", "\"action\": \"NUKE\"");
 
-        mockMvc.perform(ingest(validEventJson()))
+        mockMvc.perform(ingest("[" + validEventJson() + "," + invalidAction + "]"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(content().json("""
                         {
                           "title": "Bad Request",
                           "status": 400,
-                          "detail": "2 validation error(s); batch rejected",
+                          "detail": "1 validation error(s); batch rejected",
                           "instance": "/v1/events/ingest",
                           "errors": [
-                            {"index": 0, "field": "action", "message": "must be one of [DENY, ALERT, MONITOR]"},
-                            {"message": "whole request problem"}
+                            {"index": 1, "field": "action", "message": "must be one of [DENY, ALERT, MONITOR]"}
                           ]
                         }
                         """, true));
+        verify(ingestService, never()).ingest(anyList());
+    }
+
+    @Test
+    void returns400ProblemForRequestLevelError() throws Exception {
+        mockMvc.perform(ingest("[]"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().json("""
+                        {"status": 400, "errors": [{"message": "request body must contain at least one event"}]}
+                        """));
     }
 
     @Test
@@ -78,12 +90,13 @@ class IngestControllerTest {
 
     @Test
     void returns413WhenBatchTooLarge() throws Exception {
-        when(ingestService.ingest(any())).thenThrow(new PayloadTooLargeException("too many events"));
+        String tooMany = "[" + String.join(",", Collections.nCopies(1001, "{}")) + "]";
 
-        mockMvc.perform(ingest("[]"))
+        mockMvc.perform(ingest(tooMany))
                 .andExpect(status().isContentTooLarge())
                 .andExpect(content().json("""
-                        {"status": 413, "detail": "too many events"}
+                        {"status": 413,
+                         "detail": "batch of 1001 events exceeds the limit of 1000; split it into smaller requests"}
                         """));
     }
 

@@ -26,9 +26,13 @@ import tools.jackson.databind.JsonNode;
 @ConditionalOnRole(Role.INGEST)
 public class IngestController {
 
+    private final IngestPayloadParser parser;
+    private final IngestEventValidator validator;
     private final IngestService ingestService;
 
-    public IngestController(IngestService ingestService) {
+    public IngestController(IngestPayloadParser parser, IngestEventValidator validator, IngestService ingestService) {
+        this.parser = parser;
+        this.validator = validator;
         this.ingestService = ingestService;
     }
 
@@ -57,6 +61,7 @@ public class IngestController {
     @PostMapping(path = ApiPaths.INGEST, consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public IngestResponse ingest(@RequestBody @Parameter(hidden = true) JsonNode body) {
-        return ingestService.ingest(body);
+        IngestResult result = ingestService.ingest(validator.validate(parser.toBatch(body)));
+        return new IngestResponse(result.accepted(), result.receivedAt());
     }
 }
