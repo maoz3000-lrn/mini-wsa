@@ -2,6 +2,7 @@ package io.github.maoz3000.miniwsa.ingest;
 
 import io.github.maoz3000.miniwsa.api.ApiPaths;
 import io.github.maoz3000.miniwsa.api.ApiProperties;
+import io.github.maoz3000.miniwsa.api.JsonBodies;
 import io.github.maoz3000.miniwsa.api.ProblemResponse;
 import io.github.maoz3000.miniwsa.config.ClockConfig;
 import org.junit.jupiter.api.Test;
@@ -98,7 +99,7 @@ class IngestControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
                 .andReturn();
 
-        assertThat(ProblemResponse.read(objectMapper, result)).isEqualTo(new ProblemResponse(
+        assertThat(JsonBodies.read(objectMapper, result, ProblemResponse.class)).isEqualTo(new ProblemResponse(
                 HttpStatus.BAD_REQUEST.getReasonPhrase(), HttpStatus.BAD_REQUEST.value(),
                 "3 validation error(s); batch rejected", ApiPaths.INGEST, List.of(
                         new EventError(0, "action", "must be one of [DENY, ALERT, MONITOR]"),
@@ -151,7 +152,7 @@ class IngestControllerTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
                 .andReturn();
 
-        assertThat(ProblemResponse.read(objectMapper, result)).isEqualTo(new ProblemResponse(
+        assertThat(JsonBodies.read(objectMapper, result, ProblemResponse.class)).isEqualTo(new ProblemResponse(
                 HttpStatus.CONTENT_TOO_LARGE.getReasonPhrase(), HttpStatus.CONTENT_TOO_LARGE.value(),
                 "batch of 1001 events exceeds the limit of 1000; split it into smaller requests",
                 ApiPaths.INGEST, null));
