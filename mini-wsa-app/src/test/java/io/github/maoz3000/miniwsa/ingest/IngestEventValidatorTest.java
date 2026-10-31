@@ -22,7 +22,7 @@ import java.util.stream.Stream;
 
 import static io.github.maoz3000.miniwsa.fixtures.DlrEventFixtures.EVENT_TIME;
 import static io.github.maoz3000.miniwsa.fixtures.DlrEventFixtures.validEvent;
-import static io.github.maoz3000.miniwsa.fixtures.DlrEventFixtures.validEventJson;
+import static io.github.maoz3000.miniwsa.fixtures.DlrEventFixtures.validEventNode;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -38,7 +38,8 @@ class IngestEventValidatorTest {
 
     @Test
     void bindsValidEvents() {
-        assertThat(validator.validate(List.of(event(e -> { }), event(e -> e.put("eventId", "evt-2")))))
+        assertThat(validator.validate(List.of(
+                validEventNode(e -> { }), validEventNode(e -> e.put("eventId", "evt-2")))))
                 .containsExactly(validEvent(), validEvent().toBuilder().eventId("evt-2").build());
     }
 
@@ -69,7 +70,7 @@ class IngestEventValidatorTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("invalidEvents")
     void reportsFieldError(String scenario, Consumer<ObjectNode> mutation, EventError expected) {
-        assertThatThrownBy(() -> validator.validate(List.of(event(mutation))))
+        assertThatThrownBy(() -> validator.validate(List.of(validEventNode(mutation))))
                 .isInstanceOfSatisfying(EventValidationException.class,
                         e -> assertThat(e.errors()).containsExactly(expected));
     }
@@ -78,7 +79,7 @@ class IngestEventValidatorTest {
     @ParameterizedTest
     @ValueSource(strings = {"1900-01-01T00:00:00Z", "2020-01-01T00:00:00Z", "2026-05-20T14:37:10Z"})
     void acceptsTimestampsWithinRange(String timestamp) {
-        JsonNode event = event(e -> e.put("timestamp", timestamp));
+        JsonNode event = validEventNode(e -> e.put("timestamp", timestamp));
 
         assertThat(validator.validate(List.of(event))).extracting(DlrEvent::timestamp)
                 .containsExactly(Instant.parse(timestamp));
@@ -87,19 +88,13 @@ class IngestEventValidatorTest {
     @Test
     void rejectsWholeBatchListingEveryInvalidEvent() {
         List<JsonNode> batch = List.of(
-                event(e -> e.put("action", "BLOCK")),
-                event(e -> { }),
-                event(e -> e.remove("eventId")));
+                validEventNode(e -> e.put("action", "BLOCK")),
+                validEventNode(e -> { }),
+                validEventNode(e -> e.remove("eventId")));
 
         assertThatThrownBy(() -> validator.validate(batch))
                 .isInstanceOfSatisfying(EventValidationException.class, e -> assertThat(e.errors()).containsExactly(
                         new EventError(0, "action", "must be one of [DENY, ALERT, MONITOR]"),
                         new EventError(2, "eventId", "must not be blank")));
-    }
-
-    private static JsonNode event(Consumer<ObjectNode> mutation) {
-        ObjectNode node = (ObjectNode) MAPPER.readTree(validEventJson());
-        mutation.accept(node);
-        return node;
     }
 }

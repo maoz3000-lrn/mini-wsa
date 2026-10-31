@@ -1,6 +1,10 @@
 package io.github.maoz3000.miniwsa.analytics;
 
+import io.github.maoz3000.miniwsa.api.ApiPaths;
 import io.github.maoz3000.miniwsa.api.ApiProperties;
+import io.github.maoz3000.miniwsa.api.JsonBodies;
+import io.github.maoz3000.miniwsa.api.ProblemResponse;
+import io.github.maoz3000.miniwsa.api.StatsSummaryJson;
 import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 import io.github.maoz3000.miniwsa.domain.query.EventFilter;
 import io.github.maoz3000.miniwsa.domain.query.StatsSummary;
@@ -8,19 +12,22 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -30,6 +37,9 @@ class StatsControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @MockitoBean
     private StatsService statsService;
@@ -41,13 +51,14 @@ class StatsControllerTest {
         when(statsService.summary(filter))
                 .thenReturn(new StatsSummary(filter, 0, Map.of(), Map.of(), List.of(), List.of()));
 
-        mockMvc.perform(get("/v1/stats/summary")
+        MvcResult result = mockMvc.perform(get(ApiPaths.STATS_SUMMARY)
                         .param("configId", "14227").param("from", "2026-05-20T00:00:00Z").param("to", "2026-05-20T23:59:59Z"))
                 .andExpect(status().isOk())
-                .andExpect(content().json("""
-                        {"configId": 14227, "timeRange": {"from": "2026-05-20T00:00:00Z", "to": "2026-05-20T23:59:59Z"},
-                         "totalEvents": 0, "byCategory": {}, "byAction": {}, "topAttackers": [], "topTargetedPaths": []}
-                        """, true));
+                .andReturn();
+
+        assertThat(JsonBodies.read(objectMapper, result, StatsSummaryJson.class)).isEqualTo(new StatsSummaryJson(
+                filter.configId(), new StatsSummaryJson.TimeRange(filter.from(), filter.to()), 0,
+                Map.of(), Map.of(), List.of(), List.of()));
     }
 
     @Test
@@ -55,24 +66,27 @@ class StatsControllerTest {
         when(statsService.summary(any())).thenReturn(
                 new StatsSummary(EventFilter.unfiltered(), 0, Map.of(), Map.of(), List.of(), List.of()));
 
-        mockMvc.perform(get("/v1/stats/summary")).andExpect(status().isOk());
+        mockMvc.perform(get(ApiPaths.STATS_SUMMARY)).andExpect(status().isOk());
 
         verify(statsService).summary(EventFilter.unfiltered());
     }
 
     @Test
     void rejectsFromAfterTo() throws Exception {
-        mockMvc.perform(get("/v1/stats/summary").param("from", "2026-05-21T00:00:00Z").param("to", "2026-05-20T00:00:00Z"))
+        MvcResult result = mockMvc.perform(get(ApiPaths.STATS_SUMMARY)
+                        .param("from", "2026-05-21T00:00:00Z").param("to", "2026-05-20T00:00:00Z"))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().json("""
-                        {"status": 400, "detail": "from (2026-05-21T00:00:00Z) must not be after to (2026-05-20T00:00:00Z)"}
-                        """));
+                .andReturn();
+
+        assertThat(JsonBodies.read(objectMapper, result, ProblemResponse.class)).isEqualTo(ProblemResponse.of(
+                HttpStatus.BAD_REQUEST, "from (2026-05-21T00:00:00Z) must not be after to (2026-05-20T00:00:00Z)",
+                ApiPaths.STATS_SUMMARY));
         verifyNoInteractions(statsService);
     }
 
     @Test
     void rejectsNonIsoTimestamp() throws Exception {
-        mockMvc.perform(get("/v1/stats/summary").param("from", "yesterday"))
+        mockMvc.perform(get(ApiPaths.STATS_SUMMARY).param("from", "yesterday"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -80,7 +94,7 @@ class StatsControllerTest {
     void returns503WhenStoreUnavailable() throws Exception {
         when(statsService.summary(any())).thenThrow(new TransientStorageException("down", new RuntimeException()));
 
-        mockMvc.perform(get("/v1/stats/summary"))
+        mockMvc.perform(get(ApiPaths.STATS_SUMMARY))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(header().string("Retry-After", "5"));
     }

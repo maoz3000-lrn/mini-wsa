@@ -1,7 +1,10 @@
 package io.github.maoz3000.miniwsa.ingest;
 
 import io.github.maoz3000.miniwsa.ContainersConfig;
+import io.github.maoz3000.miniwsa.api.ApiPaths;
 import io.github.maoz3000.miniwsa.api.IngestResponse;
+import io.github.maoz3000.miniwsa.api.JsonBodies;
+import io.github.maoz3000.miniwsa.api.ProblemResponse;
 import io.github.maoz3000.miniwsa.domain.IngestedEvent;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -13,6 +16,7 @@ import org.springframework.boot.kafka.autoconfigure.KafkaConnectionDetails;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.client.RestTestClient;
 import tools.jackson.databind.ObjectMapper;
@@ -25,7 +29,7 @@ import java.util.UUID;
 import java.util.stream.StreamSupport;
 
 import static io.github.maoz3000.miniwsa.fixtures.DlrEventFixtures.validEvent;
-import static io.github.maoz3000.miniwsa.fixtures.DlrEventFixtures.validEventJson;
+import static io.github.maoz3000.miniwsa.fixtures.DlrEventFixtures.validEventNode;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -46,9 +50,9 @@ class IngestApiIntegrationTest {
     @Test
     void publishesAcceptedEventsToKafkaKeyedByEventId() {
         String eventId = "evt-" + UUID.randomUUID();
-        IngestResponse response = client.post().uri("/v1/events/ingest")
+        IngestResponse response = client.post().uri(ApiPaths.INGEST)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(validEventJson().replace("evt-00132", eventId))
+                .body(objectMapper.writeValueAsString(validEventNode(e -> e.put("eventId", eventId))))
                 .exchange()
                 .expectStatus().isCreated()
                 .expectBody(IngestResponse.class)
@@ -65,12 +69,17 @@ class IngestApiIntegrationTest {
 
     @Test
     void rejectsInvalidBatchWithoutPublishing() {
-        client.post().uri("/v1/events/ingest")
+        byte[] body = client.post().uri(ApiPaths.INGEST)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body("[" + validEventJson() + ", {\"eventId\": \"broken\"}]")
+                .body(objectMapper.writeValueAsString(
+                        List.of(validEventNode(e -> { }), validEventNode(e -> e.remove("clientIp")))))
                 .exchange()
                 .expectStatus().isBadRequest()
-                .expectBody().jsonPath("$.errors[0].index").isEqualTo(1);
+                .expectBody().returnResult().getResponseBodyContent();
+
+        assertThat(JsonBodies.read(objectMapper, body, ProblemResponse.class)).isEqualTo(ProblemResponse.of(
+                HttpStatus.BAD_REQUEST, "1 validation error(s); batch rejected", ApiPaths.INGEST,
+                List.of(new EventError(1, "clientIp", "must not be blank"))));
     }
 
     private List<ConsumerRecord<String, String>> pollTopic(String topic, String key) {
