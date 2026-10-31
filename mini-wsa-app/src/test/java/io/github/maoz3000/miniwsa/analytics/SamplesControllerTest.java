@@ -1,6 +1,10 @@
 package io.github.maoz3000.miniwsa.analytics;
 
+import io.github.maoz3000.miniwsa.api.ApiPaths;
 import io.github.maoz3000.miniwsa.api.ApiProperties;
+import io.github.maoz3000.miniwsa.api.JsonBodies;
+import io.github.maoz3000.miniwsa.api.SamplesPageJson;
+import io.github.maoz3000.miniwsa.api.SamplesPageJson.SampleEventJson;
 import io.github.maoz3000.miniwsa.domain.Action;
 import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
 import io.github.maoz3000.miniwsa.domain.IngestedEvent;
@@ -15,6 +19,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.List;
@@ -22,7 +28,7 @@ import java.util.Optional;
 
 import static io.github.maoz3000.miniwsa.fixtures.DlrEventFixtures.EVENT_TIME;
 import static io.github.maoz3000.miniwsa.fixtures.DlrEventFixtures.validEvent;
-import static io.github.maoz3000.miniwsa.fixtures.DlrEventFixtures.validEventJson;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -42,6 +48,9 @@ class SamplesControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @MockitoBean
     private SamplesService samplesService;
 
@@ -49,14 +58,14 @@ class SamplesControllerTest {
     void returnsFlattenedEnrichedEventsWithTotal() throws Exception {
         when(samplesService.samples(any(), any())).thenReturn(new SamplesResult(42, List.of(SAMPLE), Optional.empty()));
 
-        String expectedEvent = validEventJson().stripTrailing().replaceFirst("}$", """
-                , "receivedAt": "2026-05-20T14:32:12Z", "attackType": "SQL/Command Injection", "threatScore": 75}""");
-        mockMvc.perform(get("/v1/events/samples"))
+        MvcResult result = mockMvc.perform(get(ApiPaths.SAMPLES))
                 .andExpect(status().isOk())
                 .andExpect(header().doesNotExist("Link"))
-                .andExpect(content().json("""
-                        {"total": 42, "limit": 20, "offset": 0, "events": [%s]}
-                        """.formatted(expectedEvent), true));
+                .andReturn();
+
+        assertThat(JsonBodies.read(objectMapper, result, SamplesPageJson.class)).isEqualTo(new SamplesPageJson(
+                42, 20, 0, List.of(SampleEventJson.of(SAMPLE.ingested().event(), SAMPLE.ingested().receivedAt(),
+                        SAMPLE.attackType(), SAMPLE.threatScore()))));
         verify(samplesService).samples(EventFilter.unfiltered(), new PageRequest(20, 0));
     }
 
@@ -80,7 +89,7 @@ class SamplesControllerTest {
     @ParameterizedTest
     @CsvSource({"limit, 0", "limit, 101", "offset, -1", "category, SQLI", "action, BLOCK", "to, not-a-time"})
     void rejectsInvalidParameters(String name, String value) throws Exception {
-        mockMvc.perform(get("/v1/events/samples").param(name, value))
+        mockMvc.perform(get(ApiPaths.SAMPLES).param(name, value))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType("application/problem+json"));
         verifyNoInteractions(samplesService);
