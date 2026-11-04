@@ -24,6 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class IngestClientTest {
 
+    private static final JsonMapper MAPPER = JsonMapper.builder().build();
+
     private final Queue<String> bodies = new ConcurrentLinkedQueue<>();
     private final AtomicInteger requests = new AtomicInteger();
     private HttpServer server;
@@ -41,12 +43,15 @@ class IngestClientTest {
         server.stop(0);
     }
 
+    // batches may be posted in parallel, so the bodies are compared in any order
     @Test
     void postsEveryBatchAsJsonArray() {
-        IngestClient.Summary summary = client().send(Batches.of(events(5), 2));
+        List<List<GeneratedEvent>> batches = Batches.of(events(5), 2);
+
+        IngestClient.Summary summary = client().send(batches);
 
         assertThat(summary).isEqualTo(new IngestClient.Summary(5, 0));
-        assertThat(bodies).hasSize(3).allSatisfy(body -> assertThat(body).startsWith("[{\"eventId\":"));
+        assertThat(bodies.stream().map(IngestClientTest::postedBatch)).containsExactlyInAnyOrderElementsOf(batches);
     }
 
     @Test
@@ -65,8 +70,12 @@ class IngestClientTest {
         assertThat(requests).hasValue(1);
     }
 
+    private static List<GeneratedEvent> postedBatch(String body) {
+        return MAPPER.readerForListOf(GeneratedEvent.class).readValue(body);
+    }
+
     private IngestClient client() {
-        return new IngestClient(HttpClient.newHttpClient(), JsonMapper.builder().build(),
+        return new IngestClient(HttpClient.newHttpClient(), MAPPER,
                 URI.create("http://localhost:" + server.getAddress().getPort()), 2);
     }
 

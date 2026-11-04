@@ -1,6 +1,9 @@
 package io.github.maoz3000.miniwsa;
 
+import io.github.maoz3000.miniwsa.api.ApiPaths;
 import io.github.maoz3000.miniwsa.api.DlrEventResponse;
+import io.github.maoz3000.miniwsa.api.JsonBodies;
+import io.github.maoz3000.miniwsa.api.ProblemResponse;
 import io.github.maoz3000.miniwsa.api.SampleEventResponse;
 import io.github.maoz3000.miniwsa.api.SamplesPage;
 import io.github.maoz3000.miniwsa.api.StatsSummaryResponse;
@@ -8,15 +11,18 @@ import io.github.maoz3000.miniwsa.domain.Action;
 import io.github.maoz3000.miniwsa.domain.DlrEvent;
 import io.github.maoz3000.miniwsa.domain.RuleCategory;
 import io.github.maoz3000.miniwsa.domain.RuleSeverity;
+import io.github.maoz3000.miniwsa.ingest.EventError;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.client.EntityExchangeResult;
 import org.springframework.test.web.servlet.client.RestTestClient;
+import tools.jackson.databind.ObjectMapper;
 
 import java.net.URI;
 import java.time.Duration;
@@ -49,6 +55,9 @@ class EndToEndIntegrationTest {
     @Autowired
     private RestTestClient client;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Test
     void ingestedEventsAreEnrichedAndQueryable() {
         long configId = uniqueConfigId();
@@ -59,7 +68,7 @@ class EndToEndIntegrationTest {
                                 RuleSeverity.LOW, Action.MONITOR, "/products", T0.plusSeconds(100 + i))))
                 .toList();
 
-        client.post().uri("/v1/events/ingest").contentType(MediaType.APPLICATION_JSON).body(events)
+        client.post().uri(ApiPaths.INGEST).contentType(MediaType.APPLICATION_JSON).body(events)
                 .exchange().expectStatus().isCreated();
 
         await().atMost(Duration.ofSeconds(60)).until(() -> summary(configId).totalEvents() == 17);
@@ -91,7 +100,7 @@ class EndToEndIntegrationTest {
                 .mapToObj(i -> event(configId, "page-" + i, RuleCategory.XSS, RuleSeverity.HIGH, Action.ALERT,
                         "/search", i < 5 ? T0 : T0.plusSeconds(i)))
                 .toList();
-        client.post().uri("/v1/events/ingest").contentType(MediaType.APPLICATION_JSON).body(events)
+        client.post().uri(ApiPaths.INGEST).contentType(MediaType.APPLICATION_JSON).body(events)
                 .exchange().expectStatus().isCreated();
         await().atMost(Duration.ofSeconds(60)).until(() -> summary(configId).totalEvents() == 9);
 
@@ -112,10 +121,14 @@ class EndToEndIntegrationTest {
         DlrEvent valid = event(configId, "valid", RuleCategory.DOS, RuleSeverity.HIGH, Action.DENY, "/", T0);
         DlrEvent invalid = valid.toBuilder().eventId("invalid").clientIp("not-an-ip").build();
 
-        client.post().uri("/v1/events/ingest").contentType(MediaType.APPLICATION_JSON).body(List.of(valid, invalid))
+        byte[] rejection = client.post().uri(ApiPaths.INGEST).contentType(MediaType.APPLICATION_JSON)
+                .body(List.of(valid, invalid))
                 .exchange().expectStatus().isBadRequest()
-                .expectBody().jsonPath("$.errors[0].field").isEqualTo("clientIp");
-        client.post().uri("/v1/events/ingest").contentType(MediaType.APPLICATION_JSON)
+                .expectBody().returnResult().getResponseBodyContent();
+        assertThat(JsonBodies.read(objectMapper, rejection, ProblemResponse.class)).isEqualTo(ProblemResponse.of(
+                HttpStatus.BAD_REQUEST, "1 validation error(s); batch rejected", ApiPaths.INGEST,
+                List.of(new EventError(1, "clientIp", "must be a valid IPv4 or IPv6 address"))));
+        client.post().uri(ApiPaths.INGEST).contentType(MediaType.APPLICATION_JSON)
                 .body(IntStream.range(0, 1001).mapToObj(i -> valid).toList())
                 .exchange().expectStatus().isEqualTo(413);
 

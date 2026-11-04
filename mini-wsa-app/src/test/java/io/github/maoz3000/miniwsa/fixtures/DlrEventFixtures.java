@@ -9,8 +9,11 @@ import io.github.maoz3000.miniwsa.domain.GeoLocation;
 import io.github.maoz3000.miniwsa.domain.Rule;
 import io.github.maoz3000.miniwsa.domain.RuleCategory;
 import io.github.maoz3000.miniwsa.domain.RuleSeverity;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.time.Instant;
+import java.util.function.Consumer;
 
 /**
  * Canonical test events, modelled on the example DLR from the assignment.
@@ -18,6 +21,8 @@ import java.time.Instant;
 public final class DlrEventFixtures {
 
     public static final Instant EVENT_TIME = Instant.parse("2026-05-20T14:32:10Z");
+
+    private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
     private DlrEventFixtures() {
     }
@@ -103,5 +108,15 @@ public final class DlrEventFixtures {
                   "responseSize": 256
                 }
                 """;
+    }
+
+    /**
+     * {@link #validEventJson()} as a JSON tree, changed by {@code mutation}. For events no typed request can
+     * express, such as an unknown enum constant or an unparsable timestamp.
+     */
+    public static ObjectNode validEventNode(Consumer<ObjectNode> mutation) {
+        ObjectNode node = (ObjectNode) MAPPER.readTree(validEventJson());
+        mutation.accept(node);
+        return node;
     }
 }
