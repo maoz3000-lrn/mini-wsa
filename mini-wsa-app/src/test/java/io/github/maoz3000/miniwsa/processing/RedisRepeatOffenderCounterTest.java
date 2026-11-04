@@ -1,7 +1,7 @@
 package io.github.maoz3000.miniwsa.processing;
 
 import io.github.maoz3000.miniwsa.ContainersConfig;
-import io.github.maoz3000.miniwsa.domain.DlrEvent;
+import io.github.maoz3000.miniwsa.domain.event.DlrEvent;
 import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;

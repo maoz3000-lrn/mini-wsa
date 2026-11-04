@@ -1,6 +1,6 @@
 package io.github.maoz3000.miniwsa.ingest;
 
-import io.github.maoz3000.miniwsa.domain.IngestedEvent;
+import io.github.maoz3000.miniwsa.domain.event.IngestedEvent;
 
 import java.util.List;
 

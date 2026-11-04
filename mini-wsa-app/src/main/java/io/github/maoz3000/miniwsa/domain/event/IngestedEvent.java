@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.domain;
+package io.github.maoz3000.miniwsa.domain.event;
 
 import java.time.Instant;
 import java.util.Objects;

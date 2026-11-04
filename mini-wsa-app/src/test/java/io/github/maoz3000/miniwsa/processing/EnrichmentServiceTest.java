@@ -1,8 +1,8 @@
 package io.github.maoz3000.miniwsa.processing;
 
-import io.github.maoz3000.miniwsa.domain.DlrEvent;
-import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
-import io.github.maoz3000.miniwsa.domain.IngestedEvent;
+import io.github.maoz3000.miniwsa.domain.event.DlrEvent;
+import io.github.maoz3000.miniwsa.domain.event.EnrichedEvent;
+import io.github.maoz3000.miniwsa.domain.event.IngestedEvent;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;

@@ -44,7 +44,7 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
         spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
-        spring.json.value.default.type: io.github.maoz3000.miniwsa.domain.IngestedEvent
+        spring.json.value.default.type: io.github.maoz3000.miniwsa.domain.event.IngestedEvent
         spring.json.use.type.headers: false
     listener:
       type: batch

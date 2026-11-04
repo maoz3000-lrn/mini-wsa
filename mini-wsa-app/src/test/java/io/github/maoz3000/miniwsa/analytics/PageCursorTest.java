@@ -1,6 +1,6 @@
 package io.github.maoz3000.miniwsa.analytics;
 
-import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
+import io.github.maoz3000.miniwsa.domain.event.EnrichedEvent;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;

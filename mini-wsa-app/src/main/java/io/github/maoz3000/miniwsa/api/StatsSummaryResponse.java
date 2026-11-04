@@ -1,7 +1,7 @@
 package io.github.maoz3000.miniwsa.api;
 
-import io.github.maoz3000.miniwsa.domain.Action;
-import io.github.maoz3000.miniwsa.domain.RuleCategory;
+import io.github.maoz3000.miniwsa.domain.event.Action;
+import io.github.maoz3000.miniwsa.domain.event.RuleCategory;
 
 import java.time.Instant;
 import java.util.List;

@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.domain;
+package io.github.maoz3000.miniwsa.domain.event;
 
 /**
  * Category of the WAF rule that fired, with the human-readable attack type it classifies to.

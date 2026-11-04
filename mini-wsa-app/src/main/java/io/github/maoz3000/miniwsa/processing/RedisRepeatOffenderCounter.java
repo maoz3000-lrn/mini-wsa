@@ -2,7 +2,7 @@ package io.github.maoz3000.miniwsa.processing;
 
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;
-import io.github.maoz3000.miniwsa.domain.DlrEvent;
+import io.github.maoz3000.miniwsa.domain.event.DlrEvent;
 import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.dao.DataAccessException;

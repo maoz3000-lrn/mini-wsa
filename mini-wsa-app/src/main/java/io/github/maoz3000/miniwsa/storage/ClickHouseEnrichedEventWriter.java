@@ -2,7 +2,7 @@ package io.github.maoz3000.miniwsa.storage;
 
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;
-import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
+import io.github.maoz3000.miniwsa.domain.event.EnrichedEvent;
 import io.github.maoz3000.miniwsa.storage.ClickHouseRowMapper.MappedBatch;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;

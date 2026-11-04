@@ -1,14 +1,14 @@
 package io.github.maoz3000.miniwsa.analytics;
 
-import io.github.maoz3000.miniwsa.domain.Action;
-import io.github.maoz3000.miniwsa.domain.RuleCategory;
+import io.github.maoz3000.miniwsa.domain.event.Action;
+import io.github.maoz3000.miniwsa.domain.event.RuleCategory;
 import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
-import io.github.maoz3000.miniwsa.domain.query.AttackerStats;
-import io.github.maoz3000.miniwsa.domain.query.CategoryStats;
-import io.github.maoz3000.miniwsa.domain.query.EventFilter;
-import io.github.maoz3000.miniwsa.domain.query.PathStats;
-import io.github.maoz3000.miniwsa.domain.query.StatsSummary;
-import io.github.maoz3000.miniwsa.domain.query.SummaryCounts;
+import io.github.maoz3000.miniwsa.domain.analytics.summary.AttackerStats;
+import io.github.maoz3000.miniwsa.domain.analytics.summary.CategoryStats;
+import io.github.maoz3000.miniwsa.domain.analytics.EventFilter;
+import io.github.maoz3000.miniwsa.domain.analytics.summary.PathStats;
+import io.github.maoz3000.miniwsa.domain.analytics.summary.StatsSummary;
+import io.github.maoz3000.miniwsa.domain.analytics.summary.SummaryCounts;
 import io.github.maoz3000.miniwsa.storage.EventAnalyticsReader;
 import org.junit.jupiter.api.Test;
 

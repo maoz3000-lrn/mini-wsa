@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.domain;
+package io.github.maoz3000.miniwsa.domain.event;
 
 /**
  * Severity of the WAF rule that fired, with its base contribution to the threat score.

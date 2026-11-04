@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.domain;
+package io.github.maoz3000.miniwsa.domain.event;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;

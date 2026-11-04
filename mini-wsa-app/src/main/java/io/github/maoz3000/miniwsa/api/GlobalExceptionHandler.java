@@ -1,7 +1,7 @@
 package io.github.maoz3000.miniwsa.api;
 
 import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
-import io.github.maoz3000.miniwsa.domain.query.InvalidQueryException;
+import io.github.maoz3000.miniwsa.domain.error.InvalidQueryException;
 import io.github.maoz3000.miniwsa.ingest.EventPublishException;
 import io.github.maoz3000.miniwsa.ingest.EventValidationException;
 import io.github.maoz3000.miniwsa.ingest.PayloadTooLargeException;

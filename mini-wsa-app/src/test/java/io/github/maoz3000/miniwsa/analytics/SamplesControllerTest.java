@@ -1,12 +1,12 @@
 package io.github.maoz3000.miniwsa.analytics;
 
 import io.github.maoz3000.miniwsa.api.ApiProperties;
-import io.github.maoz3000.miniwsa.domain.Action;
-import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
-import io.github.maoz3000.miniwsa.domain.IngestedEvent;
-import io.github.maoz3000.miniwsa.domain.RuleCategory;
-import io.github.maoz3000.miniwsa.domain.query.EventFilter;
-import io.github.maoz3000.miniwsa.domain.query.PageRequest;
+import io.github.maoz3000.miniwsa.domain.event.Action;
+import io.github.maoz3000.miniwsa.domain.event.EnrichedEvent;
+import io.github.maoz3000.miniwsa.domain.event.IngestedEvent;
+import io.github.maoz3000.miniwsa.domain.event.RuleCategory;
+import io.github.maoz3000.miniwsa.domain.analytics.EventFilter;
+import io.github.maoz3000.miniwsa.domain.analytics.samples.PageRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;

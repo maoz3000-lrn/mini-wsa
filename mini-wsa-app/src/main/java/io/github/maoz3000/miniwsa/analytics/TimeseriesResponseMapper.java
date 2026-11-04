@@ -3,7 +3,7 @@ package io.github.maoz3000.miniwsa.analytics;
 import io.github.maoz3000.miniwsa.api.StatsSummaryResponse.TimeRange;
 import io.github.maoz3000.miniwsa.api.TimeseriesResponse;
 import io.github.maoz3000.miniwsa.api.TimeseriesResponse.Bucket;
-import io.github.maoz3000.miniwsa.domain.query.Timeseries;
+import io.github.maoz3000.miniwsa.domain.analytics.timeseries.Timeseries;
 
 /**
  * Renders a time series for clients; the time range is the one actually covered.

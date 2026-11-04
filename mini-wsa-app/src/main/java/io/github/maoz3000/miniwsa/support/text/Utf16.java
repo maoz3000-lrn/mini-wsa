@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.domain;
+package io.github.maoz3000.miniwsa.support.text;
 
 /**
  * JSON can carry unpaired UTF-16 surrogates ({@code "\ud800"}), which are not valid Unicode text: ClickHouse

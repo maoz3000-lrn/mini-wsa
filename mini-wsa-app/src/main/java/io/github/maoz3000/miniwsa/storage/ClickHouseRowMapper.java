@@ -1,9 +1,9 @@
 package io.github.maoz3000.miniwsa.storage;
 
-import io.github.maoz3000.miniwsa.domain.DlrEvent;
-import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
-import io.github.maoz3000.miniwsa.domain.GeoLocation;
-import io.github.maoz3000.miniwsa.domain.Utf16;
+import io.github.maoz3000.miniwsa.domain.event.DlrEvent;
+import io.github.maoz3000.miniwsa.domain.event.EnrichedEvent;
+import io.github.maoz3000.miniwsa.domain.event.GeoLocation;
+import io.github.maoz3000.miniwsa.support.text.Utf16;
 
 import java.time.Instant;
 import java.util.List;

@@ -1,7 +1,8 @@
-package io.github.maoz3000.miniwsa.domain.query;
+package io.github.maoz3000.miniwsa.domain.analytics;
 
-import io.github.maoz3000.miniwsa.domain.Action;
-import io.github.maoz3000.miniwsa.domain.RuleCategory;
+import io.github.maoz3000.miniwsa.domain.error.InvalidQueryException;
+import io.github.maoz3000.miniwsa.domain.event.Action;
+import io.github.maoz3000.miniwsa.domain.event.RuleCategory;
 import lombok.Builder;
 
 import java.time.Instant;

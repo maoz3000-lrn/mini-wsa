@@ -1,4 +1,6 @@
-package io.github.maoz3000.miniwsa.domain.query;
+package io.github.maoz3000.miniwsa.domain.analytics.samples;
+
+import io.github.maoz3000.miniwsa.domain.error.InvalidQueryException;
 
 public record PageRequest(int limit, int offset) {
 

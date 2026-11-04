@@ -1,5 +1,6 @@
-package io.github.maoz3000.miniwsa.domain.query;
+package io.github.maoz3000.miniwsa.domain.analytics;
 
+import io.github.maoz3000.miniwsa.domain.error.InvalidQueryException;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;

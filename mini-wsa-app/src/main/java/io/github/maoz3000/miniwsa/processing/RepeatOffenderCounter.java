@@ -1,6 +1,6 @@
 package io.github.maoz3000.miniwsa.processing;
 
-import io.github.maoz3000.miniwsa.domain.DlrEvent;
+import io.github.maoz3000.miniwsa.domain.event.DlrEvent;
 import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 
 import java.util.List;

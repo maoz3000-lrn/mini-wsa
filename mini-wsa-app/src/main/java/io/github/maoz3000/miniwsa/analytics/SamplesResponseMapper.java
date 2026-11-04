@@ -3,8 +3,8 @@ package io.github.maoz3000.miniwsa.analytics;
 import io.github.maoz3000.miniwsa.api.DlrEventResponse;
 import io.github.maoz3000.miniwsa.api.SampleEventResponse;
 import io.github.maoz3000.miniwsa.api.SamplesPage;
-import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
-import io.github.maoz3000.miniwsa.domain.query.PageRequest;
+import io.github.maoz3000.miniwsa.domain.event.EnrichedEvent;
+import io.github.maoz3000.miniwsa.domain.analytics.samples.PageRequest;
 
 /**
  * Renders a page of samples for clients.

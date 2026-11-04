@@ -1,6 +1,6 @@
 package io.github.maoz3000.miniwsa.api;
 
-import io.github.maoz3000.miniwsa.domain.Utf16;
+import io.github.maoz3000.miniwsa.support.text.Utf16;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 

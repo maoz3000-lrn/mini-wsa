@@ -1,6 +1,6 @@
 package io.github.maoz3000.miniwsa.storage;
 
-import io.github.maoz3000.miniwsa.domain.query.EventFilter;
+import io.github.maoz3000.miniwsa.domain.analytics.EventFilter;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.time.Instant;

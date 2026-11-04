@@ -1,6 +1,6 @@
 package io.github.maoz3000.miniwsa.processing;
 
-import io.github.maoz3000.miniwsa.domain.IngestedEvent;
+import io.github.maoz3000.miniwsa.domain.event.IngestedEvent;
 import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.apache.kafka.clients.consumer.ConsumerRecord;

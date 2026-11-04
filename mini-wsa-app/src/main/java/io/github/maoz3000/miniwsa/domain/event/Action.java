@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.domain;
+package io.github.maoz3000.miniwsa.domain.event;
 
 /**
  * Action the edge took on the request, with its contribution to the threat score.

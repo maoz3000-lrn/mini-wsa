@@ -2,9 +2,9 @@ package io.github.maoz3000.miniwsa.analytics;
 
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;
-import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
-import io.github.maoz3000.miniwsa.domain.query.EventFilter;
-import io.github.maoz3000.miniwsa.domain.query.PageRequest;
+import io.github.maoz3000.miniwsa.domain.event.EnrichedEvent;
+import io.github.maoz3000.miniwsa.domain.analytics.EventFilter;
+import io.github.maoz3000.miniwsa.domain.analytics.samples.PageRequest;
 import io.github.maoz3000.miniwsa.storage.EventAnalyticsReader;
 import org.springframework.stereotype.Service;
 

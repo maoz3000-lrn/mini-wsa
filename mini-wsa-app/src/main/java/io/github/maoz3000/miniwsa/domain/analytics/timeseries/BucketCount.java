@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.domain.query;
+package io.github.maoz3000.miniwsa.domain.analytics.timeseries;
 
 import java.time.Instant;
 

@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.domain.query;
+package io.github.maoz3000.miniwsa.domain.error;
 
 /**
  * An analytics query has invalid or contradictory parameters.

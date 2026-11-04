@@ -1,6 +1,6 @@
 package io.github.maoz3000.miniwsa.storage;
 
-import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
+import io.github.maoz3000.miniwsa.domain.event.EnrichedEvent;
 
 /**
  * An event the store refused individually; the rest of its batch was stored.

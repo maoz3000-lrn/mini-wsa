@@ -2,7 +2,7 @@ package io.github.maoz3000.miniwsa.processing;
 
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;
-import io.github.maoz3000.miniwsa.domain.RuleCategory;
+import io.github.maoz3000.miniwsa.domain.event.RuleCategory;
 import org.springframework.stereotype.Component;
 
 /**

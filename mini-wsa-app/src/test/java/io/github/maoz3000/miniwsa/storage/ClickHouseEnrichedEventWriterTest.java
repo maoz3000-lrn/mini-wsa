@@ -1,6 +1,6 @@
 package io.github.maoz3000.miniwsa.storage;
 
-import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
+import io.github.maoz3000.miniwsa.domain.event.EnrichedEvent;
 import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

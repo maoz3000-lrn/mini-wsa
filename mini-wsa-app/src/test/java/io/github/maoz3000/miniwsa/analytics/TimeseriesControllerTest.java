@@ -2,11 +2,11 @@ package io.github.maoz3000.miniwsa.analytics;
 
 import io.github.maoz3000.miniwsa.api.ApiProperties;
 import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
-import io.github.maoz3000.miniwsa.domain.query.BucketCount;
-import io.github.maoz3000.miniwsa.domain.query.EventFilter;
-import io.github.maoz3000.miniwsa.domain.query.InvalidQueryException;
-import io.github.maoz3000.miniwsa.domain.query.TimeInterval;
-import io.github.maoz3000.miniwsa.domain.query.Timeseries;
+import io.github.maoz3000.miniwsa.domain.analytics.timeseries.BucketCount;
+import io.github.maoz3000.miniwsa.domain.analytics.EventFilter;
+import io.github.maoz3000.miniwsa.domain.error.InvalidQueryException;
+import io.github.maoz3000.miniwsa.domain.analytics.timeseries.TimeInterval;
+import io.github.maoz3000.miniwsa.domain.analytics.timeseries.Timeseries;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;

@@ -5,9 +5,9 @@ import io.github.maoz3000.miniwsa.api.StatsSummaryResponse.CategorySummary;
 import io.github.maoz3000.miniwsa.api.StatsSummaryResponse.TimeRange;
 import io.github.maoz3000.miniwsa.api.StatsSummaryResponse.TopAttacker;
 import io.github.maoz3000.miniwsa.api.StatsSummaryResponse.TopPath;
-import io.github.maoz3000.miniwsa.domain.RuleCategory;
-import io.github.maoz3000.miniwsa.domain.query.CategoryStats;
-import io.github.maoz3000.miniwsa.domain.query.StatsSummary;
+import io.github.maoz3000.miniwsa.domain.event.RuleCategory;
+import io.github.maoz3000.miniwsa.domain.analytics.summary.CategoryStats;
+import io.github.maoz3000.miniwsa.domain.analytics.summary.StatsSummary;
 
 import java.util.EnumMap;
 import java.util.Map;

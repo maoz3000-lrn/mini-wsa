@@ -1,6 +1,6 @@
 package io.github.maoz3000.miniwsa.ingest;
 
-import io.github.maoz3000.miniwsa.domain.DlrEvent;
+import io.github.maoz3000.miniwsa.domain.event.DlrEvent;
 import io.github.maoz3000.miniwsa.fixtures.PropertiesFixtures;
 import jakarta.validation.Validation;
 import org.junit.jupiter.api.Test;
