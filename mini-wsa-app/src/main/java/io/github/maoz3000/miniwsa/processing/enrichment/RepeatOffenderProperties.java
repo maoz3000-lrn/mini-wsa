@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.processing;
+package io.github.maoz3000.miniwsa.processing.enrichment;
 
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;

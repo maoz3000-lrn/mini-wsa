@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.processing;
+package io.github.maoz3000.miniwsa.processing.deadletter;
 
 import io.github.maoz3000.miniwsa.config.KafkaTopicsProperties;
 import lombok.extern.slf4j.Slf4j;

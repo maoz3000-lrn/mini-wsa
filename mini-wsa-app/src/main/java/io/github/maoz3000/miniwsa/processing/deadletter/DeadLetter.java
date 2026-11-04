@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.processing;
+package io.github.maoz3000.miniwsa.processing.deadletter;
 
 /**
  * A record that processing could not store, with where it came from and why.

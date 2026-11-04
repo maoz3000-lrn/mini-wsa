@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.processing;
+package io.github.maoz3000.miniwsa.processing.enrichment;
 
 import io.github.maoz3000.miniwsa.domain.event.RuleCategory;
 import org.junit.jupiter.api.Test;

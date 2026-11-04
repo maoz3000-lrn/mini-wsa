@@ -7,6 +7,8 @@ import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 import io.github.maoz3000.miniwsa.storage.EnrichedEventWriter;
 import io.github.maoz3000.miniwsa.storage.RejectedEvent;
 import io.github.maoz3000.miniwsa.storage.SaveResult;
+import io.github.maoz3000.miniwsa.processing.deadletter.DeadLetterReason;
+import io.github.maoz3000.miniwsa.processing.enrichment.EnrichmentService;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

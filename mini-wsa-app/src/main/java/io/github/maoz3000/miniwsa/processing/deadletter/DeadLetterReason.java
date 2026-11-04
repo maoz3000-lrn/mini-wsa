@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.processing;
+package io.github.maoz3000.miniwsa.processing.deadletter;
 
 public enum DeadLetterReason {
     /** The Kafka record could not be read as an event. */

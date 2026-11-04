@@ -7,6 +7,8 @@ import io.github.maoz3000.miniwsa.domain.event.IngestedEvent;
 import io.github.maoz3000.miniwsa.domain.error.PermanentStorageException;
 import io.github.maoz3000.miniwsa.storage.EnrichedEventWriter;
 import io.github.maoz3000.miniwsa.storage.SaveResult;
+import io.github.maoz3000.miniwsa.processing.deadletter.DeadLetterReason;
+import io.github.maoz3000.miniwsa.processing.enrichment.EnrichmentService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 

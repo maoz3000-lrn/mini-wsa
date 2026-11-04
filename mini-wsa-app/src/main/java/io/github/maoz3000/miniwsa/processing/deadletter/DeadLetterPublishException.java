@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.processing;
+package io.github.maoz3000.miniwsa.processing.deadletter;
 
 public class DeadLetterPublishException extends RuntimeException {
 
