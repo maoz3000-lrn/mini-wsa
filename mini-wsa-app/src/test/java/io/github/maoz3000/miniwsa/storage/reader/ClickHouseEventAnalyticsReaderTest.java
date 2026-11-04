@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.storage;
+package io.github.maoz3000.miniwsa.storage.reader;
 
 import io.github.maoz3000.miniwsa.domain.event.Action;
 import io.github.maoz3000.miniwsa.domain.event.DlrEvent;
@@ -12,6 +12,8 @@ import io.github.maoz3000.miniwsa.domain.analytics.samples.PageRequest;
 import io.github.maoz3000.miniwsa.domain.analytics.summary.PathStats;
 import io.github.maoz3000.miniwsa.domain.analytics.summary.SummaryCounts;
 import io.github.maoz3000.miniwsa.domain.analytics.timeseries.TimeInterval;
+import io.github.maoz3000.miniwsa.storage.writer.ClickHouseEnrichedEventWriter;
+import io.github.maoz3000.miniwsa.storage.ClickHouseTestSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

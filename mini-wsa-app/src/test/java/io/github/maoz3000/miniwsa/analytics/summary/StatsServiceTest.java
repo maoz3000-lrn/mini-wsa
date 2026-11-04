@@ -9,7 +9,7 @@ import io.github.maoz3000.miniwsa.domain.analytics.EventFilter;
 import io.github.maoz3000.miniwsa.domain.analytics.summary.PathStats;
 import io.github.maoz3000.miniwsa.domain.analytics.summary.StatsSummary;
 import io.github.maoz3000.miniwsa.domain.analytics.summary.SummaryCounts;
-import io.github.maoz3000.miniwsa.storage.EventAnalyticsReader;
+import io.github.maoz3000.miniwsa.storage.reader.EventAnalyticsReader;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;

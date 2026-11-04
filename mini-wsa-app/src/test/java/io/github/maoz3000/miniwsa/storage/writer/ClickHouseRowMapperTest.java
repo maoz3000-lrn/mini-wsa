@@ -1,9 +1,9 @@
-package io.github.maoz3000.miniwsa.storage;
+package io.github.maoz3000.miniwsa.storage.writer;
 
 import io.github.maoz3000.miniwsa.domain.event.DlrEvent;
 import io.github.maoz3000.miniwsa.domain.event.EnrichedEvent;
 import io.github.maoz3000.miniwsa.domain.event.IngestedEvent;
-import io.github.maoz3000.miniwsa.storage.ClickHouseRowMapper.MappedBatch;
+import io.github.maoz3000.miniwsa.storage.writer.ClickHouseRowMapper.MappedBatch;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;

@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.storage;
+package io.github.maoz3000.miniwsa.storage.writer;
 
 import com.clickhouse.client.api.ServerException;
 import io.github.maoz3000.miniwsa.domain.error.PermanentStorageException;

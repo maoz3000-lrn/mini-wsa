@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.storage;
+package io.github.maoz3000.miniwsa.storage.reader;
 
 import io.github.maoz3000.miniwsa.domain.event.Action;
 import io.github.maoz3000.miniwsa.domain.event.DlrEvent;

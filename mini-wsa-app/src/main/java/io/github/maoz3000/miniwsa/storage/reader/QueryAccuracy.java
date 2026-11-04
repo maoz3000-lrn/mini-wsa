@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.storage;
+package io.github.maoz3000.miniwsa.storage.reader;
 
 /**
  * Trade-off between exact and fast analytics reads.

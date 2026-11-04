@@ -5,7 +5,7 @@ import io.github.maoz3000.miniwsa.config.Role;
 import io.github.maoz3000.miniwsa.domain.event.EnrichedEvent;
 import io.github.maoz3000.miniwsa.domain.analytics.EventFilter;
 import io.github.maoz3000.miniwsa.domain.analytics.samples.PageRequest;
-import io.github.maoz3000.miniwsa.storage.EventAnalyticsReader;
+import io.github.maoz3000.miniwsa.storage.reader.EventAnalyticsReader;
 import io.github.maoz3000.miniwsa.support.concurrent.VirtualThreads;
 import org.springframework.stereotype.Service;
 

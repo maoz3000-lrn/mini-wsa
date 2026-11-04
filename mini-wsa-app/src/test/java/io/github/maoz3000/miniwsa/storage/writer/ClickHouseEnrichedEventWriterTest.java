@@ -1,7 +1,8 @@
-package io.github.maoz3000.miniwsa.storage;
+package io.github.maoz3000.miniwsa.storage.writer;
 
 import io.github.maoz3000.miniwsa.domain.event.EnrichedEvent;
 import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
+import io.github.maoz3000.miniwsa.storage.ClickHouseTestSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;

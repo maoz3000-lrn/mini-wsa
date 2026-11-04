@@ -6,7 +6,7 @@ import io.github.maoz3000.miniwsa.domain.analytics.EventFilter;
 import io.github.maoz3000.miniwsa.domain.error.InvalidQueryException;
 import io.github.maoz3000.miniwsa.domain.analytics.timeseries.TimeInterval;
 import io.github.maoz3000.miniwsa.domain.analytics.timeseries.Timeseries;
-import io.github.maoz3000.miniwsa.storage.EventAnalyticsReader;
+import io.github.maoz3000.miniwsa.storage.reader.EventAnalyticsReader;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;

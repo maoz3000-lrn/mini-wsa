@@ -1,9 +1,9 @@
-package io.github.maoz3000.miniwsa.storage;
+package io.github.maoz3000.miniwsa.storage.writer;
 
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;
 import io.github.maoz3000.miniwsa.domain.event.EnrichedEvent;
-import io.github.maoz3000.miniwsa.storage.ClickHouseRowMapper.MappedBatch;
+import io.github.maoz3000.miniwsa.storage.writer.ClickHouseRowMapper.MappedBatch;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
