@@ -3,10 +3,12 @@ package io.github.maoz3000.miniwsa.storage;
 import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
 import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 import io.github.maoz3000.miniwsa.domain.query.AttackerStats;
+import io.github.maoz3000.miniwsa.domain.query.BucketCount;
 import io.github.maoz3000.miniwsa.domain.query.EventFilter;
 import io.github.maoz3000.miniwsa.domain.query.PageRequest;
 import io.github.maoz3000.miniwsa.domain.query.PathStats;
 import io.github.maoz3000.miniwsa.domain.query.SummaryCounts;
+import io.github.maoz3000.miniwsa.domain.query.TimeInterval;
 
 import java.util.List;
 
@@ -31,4 +33,10 @@ public interface EventAnalyticsReader {
 
     /** Number of matching events. */
     long countEvents(EventFilter filter);
+
+    /**
+     * Event counts per UTC bucket of the interval, aligned to multiples of it since the epoch, oldest first.
+     * Only buckets holding at least one matching event are returned.
+     */
+    List<BucketCount> countsPerBucket(EventFilter filter, TimeInterval interval);
 }
