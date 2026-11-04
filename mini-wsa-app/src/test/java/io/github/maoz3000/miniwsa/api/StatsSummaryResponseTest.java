@@ -1,8 +1,7 @@
-package io.github.maoz3000.miniwsa.analytics;
+package io.github.maoz3000.miniwsa.api;
 
-import io.github.maoz3000.miniwsa.api.StatsSummaryResponse;
 import io.github.maoz3000.miniwsa.api.StatsSummaryResponse.CategorySummary;
-import io.github.maoz3000.miniwsa.api.StatsSummaryResponse.TimeRange;
+import io.github.maoz3000.miniwsa.analytics.TimeRangeResponse;
 import io.github.maoz3000.miniwsa.api.StatsSummaryResponse.TopAttacker;
 import io.github.maoz3000.miniwsa.api.StatsSummaryResponse.TopPath;
 import io.github.maoz3000.miniwsa.domain.event.Action;
@@ -21,7 +20,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class StatsResponseMapperTest {
+class StatsSummaryResponseTest {
 
     private static final EventFilter FILTER = EventFilter.builder()
             .configId(14227L).from(Instant.parse("2026-05-20T00:00:00Z")).to(Instant.parse("2026-05-21T00:00:00Z")).build();
@@ -35,11 +34,11 @@ class StatsResponseMapperTest {
         StatsSummary summary = new StatsSummary(FILTER, 3, byCategory, byAction,
                 List.of(new AttackerStats("203.0.113.42", 2, 81.25)), List.of(new PathStats("/api/v1/login", 2)));
 
-        StatsSummaryResponse response = StatsResponseMapper.toResponse(summary);
+        StatsSummaryResponse response = StatsSummaryResponse.from(summary);
 
         assertThat(response).isEqualTo(new StatsSummaryResponse(
                 14227L,
-                new TimeRange(FILTER.from(), FILTER.to()),
+                new TimeRangeResponse(FILTER.from(), FILTER.to()),
                 3,
                 Map.of(RuleCategory.INJECTION, new CategorySummary(2, 72.3),
                         RuleCategory.BOT, new CategorySummary(1, 45.1)),

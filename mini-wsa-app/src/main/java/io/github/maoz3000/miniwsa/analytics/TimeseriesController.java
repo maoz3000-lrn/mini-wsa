@@ -62,7 +62,7 @@ public class TimeseriesController {
                     schema = @Schema(type = "string", allowableValues = {"1m", "5m", "1h"}))
             @RequestParam String interval) {
         // bound as text: an enum parameter would also accept constant names such as ONE_MINUTE
-        return TimeseriesResponseMapper.toResponse(timeseriesService.timeseries(
+        return TimeseriesResponse.from(timeseriesService.timeseries(
                 EventFilter.builder().configId(configId).from(from).to(to).build(), TimeInterval.parse(interval)));
     }
 }

@@ -78,7 +78,7 @@ public class SamplesController {
         SamplesResult result = samplesService.samples(filter, page);
         ResponseEntity.BodyBuilder response = ResponseEntity.ok();
         result.next().ifPresent(next -> response.header(HttpHeaders.LINK, nextLink(next)));
-        return response.body(SamplesResponseMapper.toResponse(result, page));
+        return response.body(SamplesPage.from(result, page));
     }
 
     private static String nextLink(PageCursor next) {
