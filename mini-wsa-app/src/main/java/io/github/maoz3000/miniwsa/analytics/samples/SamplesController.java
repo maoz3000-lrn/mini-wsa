@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.analytics;
+package io.github.maoz3000.miniwsa.analytics.samples;
 
 import io.github.maoz3000.miniwsa.api.ApiPaths;
 import io.github.maoz3000.miniwsa.api.OpenApiExamples;

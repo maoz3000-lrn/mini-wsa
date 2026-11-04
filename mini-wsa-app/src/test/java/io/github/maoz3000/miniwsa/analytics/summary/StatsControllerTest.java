@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.analytics;
+package io.github.maoz3000.miniwsa.analytics.summary;
 
 import io.github.maoz3000.miniwsa.api.ApiProperties;
 import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;

@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.analytics;
+package io.github.maoz3000.miniwsa.analytics.timeseries;
 
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;

@@ -1,6 +1,6 @@
 package io.github.maoz3000.miniwsa.api;
 
-import io.github.maoz3000.miniwsa.analytics.SamplesResult;
+import io.github.maoz3000.miniwsa.analytics.samples.SamplesResult;
 import io.github.maoz3000.miniwsa.domain.analytics.samples.PageRequest;
 
 import java.util.List;

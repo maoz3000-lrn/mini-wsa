@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.analytics;
+package io.github.maoz3000.miniwsa.analytics.summary;
 
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;
@@ -11,6 +11,7 @@ import io.github.maoz3000.miniwsa.domain.analytics.summary.PathStats;
 import io.github.maoz3000.miniwsa.domain.analytics.summary.StatsSummary;
 import io.github.maoz3000.miniwsa.domain.analytics.summary.SummaryCounts;
 import io.github.maoz3000.miniwsa.storage.EventAnalyticsReader;
+import io.github.maoz3000.miniwsa.support.concurrent.VirtualThreads;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
