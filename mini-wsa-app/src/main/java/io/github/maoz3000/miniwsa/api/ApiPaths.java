@@ -5,6 +5,7 @@ public final class ApiPaths {
     public static final String INGEST = "/v1/events/ingest";
     public static final String SAMPLES = "/v1/events/samples";
     public static final String STATS_SUMMARY = "/v1/stats/summary";
+    public static final String STATS_TIMESERIES = "/v1/stats/timeseries";
 
     private ApiPaths() {
     }

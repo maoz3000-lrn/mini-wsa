@@ -2,7 +2,6 @@ package io.github.maoz3000.miniwsa.domain.query;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Optional;
 
 /**
  * Width of a time-series bucket, with the range covered when the client gives no bounds.
@@ -36,7 +35,12 @@ public enum TimeInterval {
         return defaultWindow;
     }
 
-    public static Optional<TimeInterval> fromLabel(String label) {
-        return Arrays.stream(values()).filter(i -> i.label.equals(label)).findFirst();
+    /**
+     * @throws InvalidQueryException unless {@code label} is exactly one of the labels, e.g. {@code 5m}
+     */
+    public static TimeInterval parse(String label) {
+        return Arrays.stream(values()).filter(i -> i.label.equals(label)).findFirst()
+                .orElseThrow(() -> new InvalidQueryException("interval must be one of "
+                        + Arrays.stream(values()).map(TimeInterval::label).toList() + ", got '" + label + "'"));
     }
 }
