@@ -1,8 +1,8 @@
 package io.github.maoz3000.miniwsa.fixtures;
 
-import io.github.maoz3000.miniwsa.api.DlrEventRequest;
-import io.github.maoz3000.miniwsa.api.DlrEventRequest.GeoLocationRequest;
-import io.github.maoz3000.miniwsa.api.DlrEventRequest.RuleRequest;
+import io.github.maoz3000.miniwsa.ingest.DlrEventRequest;
+import io.github.maoz3000.miniwsa.ingest.DlrEventRequest.GeoLocationRequest;
+import io.github.maoz3000.miniwsa.ingest.DlrEventRequest.RuleRequest;
 import io.github.maoz3000.miniwsa.domain.event.Action;
 import io.github.maoz3000.miniwsa.domain.event.DlrEvent;
 import io.github.maoz3000.miniwsa.domain.event.GeoLocation;

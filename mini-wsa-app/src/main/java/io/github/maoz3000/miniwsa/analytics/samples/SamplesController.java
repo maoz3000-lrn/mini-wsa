@@ -1,8 +1,6 @@
 package io.github.maoz3000.miniwsa.analytics.samples;
 
 import io.github.maoz3000.miniwsa.api.ApiPaths;
-import io.github.maoz3000.miniwsa.api.OpenApiExamples;
-import io.github.maoz3000.miniwsa.api.SamplesPage;
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;
 import io.github.maoz3000.miniwsa.domain.event.Action;
@@ -34,6 +32,9 @@ import java.time.Instant;
 @ConditionalOnRole(Role.ANALYTICS)
 public class SamplesController {
 
+    private static final String LINK_HEADER_DESCRIPTION = "Present unless this is the last page: "
+            + "<...?to=...&offset=...>; rel=\"next\". Follow it to page without duplicates while new events arrive.";
+
     private final SamplesService samplesService;
 
     public SamplesController(SamplesService samplesService) {
@@ -50,7 +51,7 @@ public class SamplesController {
                     + "Page with the Link header (to + offset act as a cursor).")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Page of events",
-                    headers = @Header(name = HttpHeaders.LINK, description = OpenApiExamples.LINK_HEADER_DESCRIPTION)),
+                    headers = @Header(name = HttpHeaders.LINK, description = LINK_HEADER_DESCRIPTION)),
             @ApiResponse(responseCode = "400", description = "Invalid parameters (e.g. from after to)",
                     content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                             schema = @Schema(implementation = ProblemDetail.class))),
@@ -58,7 +59,7 @@ public class SamplesController {
                     content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                             schema = @Schema(implementation = ProblemDetail.class)))})
     @GetMapping(ApiPaths.SAMPLES)
-    public ResponseEntity<SamplesPage> samples(
+    public ResponseEntity<SamplesPageResponse> samples(
             @Parameter(description = "Configuration id; omit to aggregate across all configurations", example = "14227")
             @RequestParam(required = false) Long configId,
             @Parameter(description = "Inclusive lower bound on the event timestamp (ISO-8601)", example = "2026-05-20T00:00:00Z")
@@ -78,7 +79,7 @@ public class SamplesController {
         SamplesResult result = samplesService.samples(filter, page);
         ResponseEntity.BodyBuilder response = ResponseEntity.ok();
         result.next().ifPresent(next -> response.header(HttpHeaders.LINK, nextLink(next)));
-        return response.body(SamplesPage.from(result, page));
+        return response.body(SamplesPageResponse.from(result, page));
     }
 
     private static String nextLink(PageCursor next) {

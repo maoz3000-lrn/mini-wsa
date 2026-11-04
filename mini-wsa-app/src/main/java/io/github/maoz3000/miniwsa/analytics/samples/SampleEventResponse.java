@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.api;
+package io.github.maoz3000.miniwsa.analytics.samples;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import io.github.maoz3000.miniwsa.domain.event.EnrichedEvent;

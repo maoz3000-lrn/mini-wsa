@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.api;
+package io.github.maoz3000.miniwsa.support.validation;
 
 import io.github.maoz3000.miniwsa.support.text.Utf16;
 import jakarta.validation.ConstraintValidator;

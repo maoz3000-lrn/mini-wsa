@@ -1,7 +1,6 @@
 package io.github.maoz3000.miniwsa.analytics.timeseries;
 
 import io.github.maoz3000.miniwsa.api.ApiPaths;
-import io.github.maoz3000.miniwsa.api.TimeseriesResponse;
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;
 import io.github.maoz3000.miniwsa.domain.analytics.EventFilter;

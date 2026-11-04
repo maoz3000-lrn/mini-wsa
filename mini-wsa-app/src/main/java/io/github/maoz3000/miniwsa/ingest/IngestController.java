@@ -1,9 +1,6 @@
 package io.github.maoz3000.miniwsa.ingest;
 
 import io.github.maoz3000.miniwsa.api.ApiPaths;
-import io.github.maoz3000.miniwsa.api.DlrEventRequest;
-import io.github.maoz3000.miniwsa.api.IngestResponse;
-import io.github.maoz3000.miniwsa.api.OpenApiExamples;
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;
 import io.swagger.v3.oas.annotations.Operation;
@@ -45,8 +42,8 @@ public class IngestController {
     @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(
             mediaType = MediaType.APPLICATION_JSON_VALUE,
             schema = @Schema(oneOf = {DlrEventRequest.class, DlrEventRequest[].class}),
-            examples = {@ExampleObject(name = "single event", value = OpenApiExamples.SINGLE_EVENT),
-                    @ExampleObject(name = "batch", value = OpenApiExamples.BATCH)}))
+            examples = {@ExampleObject(name = "single event", value = IngestApiExamples.SINGLE_EVENT),
+                    @ExampleObject(name = "batch", value = IngestApiExamples.BATCH)}))
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "All events durably accepted"),
             @ApiResponse(responseCode = "400", description = "Malformed JSON or invalid event(s); nothing accepted",

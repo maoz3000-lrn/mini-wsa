@@ -1,9 +1,9 @@
-package io.github.maoz3000.miniwsa.api;
+package io.github.maoz3000.miniwsa.ingest;
 
 /**
- * Request examples shown in Swagger UI ("Try it out" sends them as-is).
+ * Ingest request examples shown in Swagger UI ("Try it out" sends them as-is).
  */
-public final class OpenApiExamples {
+public final class IngestApiExamples {
 
     public static final String SINGLE_EVENT = """
             {
@@ -42,9 +42,6 @@ public final class OpenApiExamples {
                "action": "MONITOR"}
             ]""";
 
-    public static final String LINK_HEADER_DESCRIPTION = "Present unless this is the last page: "
-            + "<...?to=...&offset=...>; rel=\"next\". Follow it to page without duplicates while new events arrive.";
-
-    private OpenApiExamples() {
+    private IngestApiExamples() {
     }
 }

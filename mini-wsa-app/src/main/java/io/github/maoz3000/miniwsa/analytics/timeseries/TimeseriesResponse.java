@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.api;
+package io.github.maoz3000.miniwsa.analytics.timeseries;
 
 import io.github.maoz3000.miniwsa.analytics.TimeRangeResponse;
 import io.github.maoz3000.miniwsa.domain.analytics.timeseries.Timeseries;

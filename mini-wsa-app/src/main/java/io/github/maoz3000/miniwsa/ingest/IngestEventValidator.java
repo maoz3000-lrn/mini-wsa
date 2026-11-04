@@ -1,6 +1,5 @@
 package io.github.maoz3000.miniwsa.ingest;
 
-import io.github.maoz3000.miniwsa.api.DlrEventRequest;
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;
 import io.github.maoz3000.miniwsa.domain.event.DlrEvent;

@@ -1,6 +1,6 @@
-package io.github.maoz3000.miniwsa.api;
+package io.github.maoz3000.miniwsa.ingest;
 
-import io.github.maoz3000.miniwsa.api.DlrEventRequest.GeoLocationRequest;
+import io.github.maoz3000.miniwsa.ingest.DlrEventRequest.GeoLocationRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;

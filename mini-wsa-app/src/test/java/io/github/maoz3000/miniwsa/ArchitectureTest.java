@@ -15,7 +15,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import static com.tngtech.archunit.base.DescribedPredicate.and;
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideOutsideOfPackage;
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.simpleNameStartingWith;
+import static com.tngtech.archunit.core.domain.properties.HasName.Predicates.nameMatching;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
@@ -28,10 +30,16 @@ class ArchitectureTest {
 
     private static final String APP = "io.github.maoz3000.miniwsa..";
 
+    /**
+     * DTOs live next to their controllers, so they are recognized by name: records named *Request / *Response
+     * (nested records included). Domain types such as PageRequest are not DTOs.
+     */
     @ArchTest
-    static final ArchRule servicesDoNotDependOnApiTypes = noClasses()
+    static final ArchRule servicesDoNotDependOnHttpDtos = noClasses()
             .that().areAnnotatedWith(Service.class)
-            .should().dependOnClassesThat().resideInAPackage("..miniwsa.api..")
+            .should().dependOnClassesThat(and(
+                    resideOutsideOfPackage("..miniwsa.domain.."),
+                    nameMatching(".*(Request|Response)(\\$.*)?")))
             .because("services return business results; controllers map them to DTOs");
 
     @ArchTest

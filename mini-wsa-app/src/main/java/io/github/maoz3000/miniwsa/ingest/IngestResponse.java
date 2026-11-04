@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.api;
+package io.github.maoz3000.miniwsa.ingest;
 
 import java.time.Instant;
 

@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.api;
+package io.github.maoz3000.miniwsa.analytics.samples;
 
 import io.github.maoz3000.miniwsa.domain.event.Action;
 import io.github.maoz3000.miniwsa.domain.event.DlrEvent;

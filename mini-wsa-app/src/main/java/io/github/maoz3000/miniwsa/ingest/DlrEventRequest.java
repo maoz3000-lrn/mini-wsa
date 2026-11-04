@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.api;
+package io.github.maoz3000.miniwsa.ingest;
 
 import io.github.maoz3000.miniwsa.domain.event.Action;
 import io.github.maoz3000.miniwsa.domain.event.DlrEvent;
@@ -6,6 +6,8 @@ import io.github.maoz3000.miniwsa.domain.event.GeoLocation;
 import io.github.maoz3000.miniwsa.domain.event.Rule;
 import io.github.maoz3000.miniwsa.domain.event.RuleCategory;
 import io.github.maoz3000.miniwsa.domain.event.RuleSeverity;
+import io.github.maoz3000.miniwsa.support.validation.IpAddress;
+import io.github.maoz3000.miniwsa.support.validation.WellFormedText;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;

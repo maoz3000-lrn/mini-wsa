@@ -1,9 +1,9 @@
-package io.github.maoz3000.miniwsa.api;
+package io.github.maoz3000.miniwsa.analytics.summary;
 
-import io.github.maoz3000.miniwsa.api.StatsSummaryResponse.CategorySummary;
+import io.github.maoz3000.miniwsa.analytics.summary.StatsSummaryResponse.CategorySummary;
 import io.github.maoz3000.miniwsa.analytics.TimeRangeResponse;
-import io.github.maoz3000.miniwsa.api.StatsSummaryResponse.TopAttacker;
-import io.github.maoz3000.miniwsa.api.StatsSummaryResponse.TopPath;
+import io.github.maoz3000.miniwsa.analytics.summary.StatsSummaryResponse.TopAttacker;
+import io.github.maoz3000.miniwsa.analytics.summary.StatsSummaryResponse.TopPath;
 import io.github.maoz3000.miniwsa.domain.event.Action;
 import io.github.maoz3000.miniwsa.domain.event.RuleCategory;
 import io.github.maoz3000.miniwsa.domain.analytics.summary.AttackerStats;
