@@ -87,7 +87,7 @@ Every processing step is idempotent, so on any failure the whole batch is simply
 - Offsets are committed last.
 
 ### Roles: one image, three jobs
-`miniwsa.roles` (env `MINIWSA_ROLES`, default `ingest, processing, analytics`) decides which components a process creates. Locally and in the default compose, one container runs all three. In production, the same image can run as separately scaled services, e.g. 3 ingest, 2 processing, 1 analytics; see [Roles and split deployment](#roles-and-split-deployment). Health checks follow the roles: an ingest-only instance does not check ClickHouse or Redis.
+`miniwsa.roles` (env `MINIWSA_ROLES`, default `ingest, processing, analytics`) decides which components a process creates. Locally and in the default compose, one container runs all three; in compose, `APP_ROLES` picks a subset. In production, the same image can run as separately scaled services, e.g. 3 ingest, 2 processing, 1 analytics; see [Roles and split deployment](#roles-and-split-deployment). Health checks follow the roles: an ingest-only instance does not check ClickHouse or Redis.
 
 ### Code layout (`mini-wsa-app`)
 | Package | Contents |
@@ -464,7 +464,16 @@ This is a deployment setting (`MINIWSA_ANALYTICS_ACCURACY`), not an API paramete
 | `processing` | Kafka listener, enrichment, Redis window, ClickHouse writer, dead-letter publisher | Kafka, Redis, ClickHouse |
 | `analytics` | Stats and samples endpoints | ClickHouse |
 
-The default compose runs one container with all roles. `docker-compose.split.yml` runs the same image as separate services behind an nginx gateway that routes by path, so clients still see one URL:
+The default compose runs one container with the roles in `APP_ROLES` (`.env`, default all three). Set it from the shell to run a subset:
+```bash
+APP_ROLES=ingest,analytics docker compose up -d --build --wait   # one container, chosen roles
+APP_ROLES=processing docker compose up -d --wait                 # consumer only
+```
+- Endpoints of roles that are not selected return 404.
+- The generator posts to the ingest endpoint, so it needs `ingest`.
+- Ingested events are stored only while some instance runs `processing`; until then they wait in Kafka.
+
+`docker-compose.split.yml` runs the same image as separate services behind an nginx gateway that routes by path, so clients still see one URL:
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.split.yml up -d --build --wait
 docker compose -f docker-compose.yml -f docker-compose.split.yml run --rm generator --count 10000
@@ -593,7 +602,7 @@ Each component keeps its data in a named volume:
 Shutdown is graceful: in-flight HTTP requests finish, the consumer completes and commits its current batch, and `stop_grace_period` is 30 s. Even a hard kill loses nothing that got a 201: unfinished batches are simply delivered again.
 
 ### Configuration
-Configuration has two layers. **Docker Compose settings** live in [`.env`](.env): Compose loads it automatically from the repo root and uses it only to fill the `${VAR}` placeholders in `docker-compose.yml` and `docker-compose.split.yml` (host ports, ClickHouse credentials, topic partitions and retention, replica counts, `JAVA_OPTS`, the Kafka cluster id). Some of these reach the app as container environment variables (e.g. `CLICKHOUSE_USER`), which override `application.yml`. The app itself never reads `.env`, so when it runs from the IDE or Maven it uses the `application.yml` defaults.
+Configuration has two layers. **Docker Compose settings** live in [`.env`](.env): Compose loads it automatically from the repo root and uses it only to fill the `${VAR}` placeholders in `docker-compose.yml` and `docker-compose.split.yml` (host ports, ClickHouse credentials, topic partitions and retention, the app container's roles `APP_ROLES`, replica counts, `JAVA_OPTS`, the Kafka cluster id). Some of these reach the app as container environment variables (e.g. `CLICKHOUSE_USER`), which override `application.yml`. The app itself never reads `.env`, so when it runs from the IDE or Maven it uses the `application.yml` defaults.
 
 To override `.env` without editing it, export the variable in your shell (shell values win over `.env`), or put it in a git-ignored `.env.local` and pass both files: `docker compose --env-file .env --env-file .env.local up -d --build --wait`. Passing only `--env-file .env.local` skips `.env`, so every variable missing from it comes out empty.
 
