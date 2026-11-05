@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.ingest;
+package io.github.maoz3000.miniwsa.ingest.publishing;
 
 import io.github.maoz3000.miniwsa.domain.event.IngestedEvent;
 

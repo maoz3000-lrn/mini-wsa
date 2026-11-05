@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.ingest;
+package io.github.maoz3000.miniwsa.ingest.validation;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockFilterChain;

@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.ingest;
+package io.github.maoz3000.miniwsa.ingest.validation;
 
 /**
  * The ingest request exceeds a configured size limit; the client should split it.

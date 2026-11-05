@@ -1,8 +1,10 @@
-package io.github.maoz3000.miniwsa.ingest;
+package io.github.maoz3000.miniwsa.ingest.validation;
 
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;
 import io.github.maoz3000.miniwsa.domain.event.DlrEvent;
+import io.github.maoz3000.miniwsa.ingest.DlrEventRequest;
+import io.github.maoz3000.miniwsa.ingest.IngestProperties;
 import jakarta.validation.Validator;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.JacksonException;

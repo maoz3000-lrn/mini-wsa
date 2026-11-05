@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.ingest;
+package io.github.maoz3000.miniwsa.ingest.publishing;
 
 /**
  * Kafka did not acknowledge the batch in time; nothing can be promised about it, so the client must retry.

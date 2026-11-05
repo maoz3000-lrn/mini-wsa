@@ -1,7 +1,8 @@
-package io.github.maoz3000.miniwsa.ingest;
+package io.github.maoz3000.miniwsa.ingest.publishing;
 
 import io.github.maoz3000.miniwsa.domain.event.IngestedEvent;
 import io.github.maoz3000.miniwsa.fixtures.PropertiesFixtures;
+import io.github.maoz3000.miniwsa.ingest.IngestProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;

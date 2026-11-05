@@ -2,6 +2,8 @@ package io.github.maoz3000.miniwsa.ingest;
 
 import io.github.maoz3000.miniwsa.domain.event.DlrEvent;
 import io.github.maoz3000.miniwsa.domain.event.IngestedEvent;
+import io.github.maoz3000.miniwsa.ingest.publishing.EventPublishException;
+import io.github.maoz3000.miniwsa.ingest.publishing.EventPublisher;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;

@@ -3,6 +3,7 @@ package io.github.maoz3000.miniwsa.ingest;
 import io.github.maoz3000.miniwsa.api.ApiPaths;
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;
+import io.github.maoz3000.miniwsa.ingest.validation.RequestSizeFilter;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

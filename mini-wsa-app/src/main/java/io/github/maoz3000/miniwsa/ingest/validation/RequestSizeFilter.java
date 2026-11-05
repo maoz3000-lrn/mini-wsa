@@ -1,4 +1,4 @@
-package io.github.maoz3000.miniwsa.ingest;
+package io.github.maoz3000.miniwsa.ingest.validation;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ReadListener;

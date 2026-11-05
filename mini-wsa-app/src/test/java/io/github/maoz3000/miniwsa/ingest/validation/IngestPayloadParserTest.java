@@ -1,4 +1,6 @@
-package io.github.maoz3000.miniwsa.ingest;
+package io.github.maoz3000.miniwsa.ingest.validation;
+
+import io.github.maoz3000.miniwsa.ingest.IngestProperties;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

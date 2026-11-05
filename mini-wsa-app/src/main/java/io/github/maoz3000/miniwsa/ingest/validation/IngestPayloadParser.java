@@ -1,7 +1,8 @@
-package io.github.maoz3000.miniwsa.ingest;
+package io.github.maoz3000.miniwsa.ingest.validation;
 
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;
+import io.github.maoz3000.miniwsa.ingest.IngestProperties;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
