@@ -4,6 +4,7 @@ import io.github.maoz3000.miniwsa.api.DlrEventResponse;
 import io.github.maoz3000.miniwsa.api.SampleEventResponse;
 import io.github.maoz3000.miniwsa.api.SamplesPage;
 import io.github.maoz3000.miniwsa.api.StatsSummaryResponse;
+import io.github.maoz3000.miniwsa.api.TimeseriesResponse;
 import io.github.maoz3000.miniwsa.domain.Action;
 import io.github.maoz3000.miniwsa.domain.DlrEvent;
 import io.github.maoz3000.miniwsa.domain.RuleCategory;
@@ -71,6 +72,16 @@ class EndToEndIntegrationTest {
                 .containsEntry(Action.ALERT, 0L);
         assertThat(summary.topTargetedPaths()).containsExactly(
                 new StatsSummaryResponse.TopPath("/api/v1/login", 12), new StatsSummaryResponse.TopPath("/products", 5));
+
+        TimeseriesResponse series = client.get()
+                .uri("/v1/stats/timeseries?configId={id}&from={from}&to={to}&interval=1m",
+                        configId, T0, T0.plusSeconds(120))
+                .exchange().expectStatus().isOk()
+                .expectBody(TimeseriesResponse.class).returnResult().getResponseBody();
+        assertThat(series.buckets()).containsExactly(
+                new TimeseriesResponse.Bucket(T0, 12),
+                new TimeseriesResponse.Bucket(T0.plusSeconds(60), 5),
+                new TimeseriesResponse.Bucket(T0.plusSeconds(120), 0));
 
         SamplesPage bots = samples("/v1/events/samples?configId=" + configId + "&category=BOT").page();
         assertThat(bots.total()).isEqualTo(5);

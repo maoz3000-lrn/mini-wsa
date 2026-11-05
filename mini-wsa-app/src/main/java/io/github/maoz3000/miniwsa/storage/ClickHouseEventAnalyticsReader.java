@@ -7,16 +7,19 @@ import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
 import io.github.maoz3000.miniwsa.domain.RuleCategory;
 import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
 import io.github.maoz3000.miniwsa.domain.query.AttackerStats;
+import io.github.maoz3000.miniwsa.domain.query.BucketCount;
 import io.github.maoz3000.miniwsa.domain.query.CategoryStats;
 import io.github.maoz3000.miniwsa.domain.query.EventFilter;
 import io.github.maoz3000.miniwsa.domain.query.PageRequest;
 import io.github.maoz3000.miniwsa.domain.query.PathStats;
 import io.github.maoz3000.miniwsa.domain.query.SummaryCounts;
+import io.github.maoz3000.miniwsa.domain.query.TimeInterval;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -115,6 +118,34 @@ public class ClickHouseEventAnalyticsReader implements EventAnalyticsReader {
                 .paramSource(sql.parameters())
                 .query(Long.class)
                 .single());
+    }
+
+    @Override
+    public List<BucketCount> countsPerBucket(EventFilter filter, TimeInterval interval) {
+        ClickHouseFilterSql sql = ClickHouseFilterSql.of(filter, properties);
+        // Inserted fragments:
+        //   source:   "dlr_events FINAL" when accuracy is EXACT (drops unmerged duplicates), else "dlr_events"
+        //   where:    config_id = :configId (if given) AND :from <= timestamp <= :to (inclusive, UTC millis);
+        //             filters on the raw timestamp column, so partition pruning and the primary key still apply
+        //   settings: max_execution_time (query timeout -> 503) and, with FINAL,
+        //             do_not_merge_across_partitions_select_final = 1 (deduplicate each day partition in parallel)
+        return read(() -> jdbc.sql("""
+                        -- Event counts per time bucket; only buckets that contain events are returned.
+                        -- Bucket start = event time in epoch millis, rounded down to a multiple of the interval
+                        -- (e.g. 5m: 10:07:42.500 -> 10:05:00.000). positiveModulo keeps the remainder >= 0, so
+                        -- events before 1970 (negative millis) also round down, matching Java's Math.floorDiv.
+                        SELECT toUnixTimestamp64Milli(timestamp)
+                                 - positiveModulo(toUnixTimestamp64Milli(timestamp), :bucketMillis) AS bucket_ms,
+                               count() AS cnt -- events per bucket
+                        FROM %s%s
+                        GROUP BY bucket_ms -- one row per bucket
+                        ORDER BY bucket_ms -- oldest first, ready for a line chart
+                        %s
+                        """.formatted(sql.source(), sql.where(), sql.settings()))
+                .paramSource(new MapSqlParameterSource(sql.parameters().getValues())
+                        .addValue("bucketMillis", interval.duration().toMillis()))
+                .query((rs, n) -> new BucketCount(Instant.ofEpochMilli(rs.getLong("bucket_ms")), rs.getLong("cnt")))
+                .list());
     }
 
     private static MapSqlParameterSource withLimit(ClickHouseFilterSql sql, int limit) {

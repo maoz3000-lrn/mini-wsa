@@ -5,6 +5,7 @@ A small version of Akamai's Web Security Analytics. It ingests security events (
 ```
 POST /v1/events/ingest ──► Kafka ──► enrich (attack type, threat score, repeat-offender window in Redis) ──► ClickHouse
 GET  /v1/stats/summary ◄──────────────────────────────────────────────────────────────────────────────────────┤
+GET  /v1/stats/timeseries ◄───────────────────────────────────────────────────────────────────────────────────┤
 GET  /v1/events/samples ◄─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -32,6 +33,7 @@ Requires Docker with Compose v2.
 docker compose up -d --build --wait                 # Kafka, Redis, ClickHouse, the two UIs and the app on :8080
 docker compose run --rm generator --count 10000     # 10k events, 30% in attack waves
 curl -s localhost:8080/v1/stats/summary | jq
+curl -s 'localhost:8080/v1/stats/timeseries?interval=5m' | jq   # last 24h in 5-minute buckets
 curl -s 'localhost:8080/v1/events/samples?category=INJECTION&limit=5' | jq
 ```
 
@@ -55,7 +57,7 @@ flowchart LR
     subgraph app[mini-wsa-app: one image, three roles]
         ingest[INGEST<br/>validate, stamp receivedAt,<br/>publish, wait for ack]
         processing[PROCESSING<br/>batch consumer:<br/>enrich, store, dead-letter]
-        analytics[ANALYTICS<br/>stats and samples]
+        analytics[ANALYTICS<br/>stats, time series<br/>and samples]
     end
     ingest -->|1 record per event, key = eventId| raw[(Kafka<br/>dlr-raw)]
     raw --> processing
@@ -63,7 +65,7 @@ flowchart LR
     processing -->|1 batched INSERT per batch| ch[(ClickHouse<br/>dlr_events)]
     processing -->|unstorable records| dlt[(Kafka<br/>dlr-raw.DLT)]
     analytics -->|aggregations| ch
-    analyst[SOC analyst / dashboard] -->|GET /v1/stats/summary<br/>GET /v1/events/samples| analytics
+    analyst[SOC analyst / dashboard] -->|GET /v1/stats/summary<br/>GET /v1/stats/timeseries<br/>GET /v1/events/samples| analytics
 ```
 
 ### Request path
@@ -75,7 +77,7 @@ flowchart LR
    - It writes the batch to ClickHouse with a single INSERT.
    - It sends records that cannot be stored to a dead-letter topic.
    - Only after all of that does it commit Kafka offsets.
-3. **Analytics** answers `GET /v1/stats/summary` and `GET /v1/events/samples` directly from ClickHouse.
+3. **Analytics** answers `GET /v1/stats/summary`, `GET /v1/stats/timeseries` and `GET /v1/events/samples` directly from ClickHouse.
 
 ### Why a queue between ingest and storage
 Attack bursts are exactly when DLR volume spikes. Kafka absorbs those spikes, so a slow or restarting database never blocks HTTP threads or loses data: consumers just fall behind and catch up. It also separates write throughput from query load.
@@ -95,7 +97,7 @@ Every processing step is idempotent, so on any failure the whole batch is simply
 | `ingest` | Controller (parses and validates the payload), `IngestService` (stamps `receivedAt`, publishes), `EventPublisher` and its Kafka implementation, size filter |
 | `processing` | Kafka batch consumer, `BatchProcessingService` (enrich, store, report what could not be stored), enrichment, attack-type classifier, threat-score calculator, `RepeatOffenderCounter` and `DeadLetterSink` with their Redis and Kafka implementations, metrics |
 | `storage` | Repository interfaces (`EnrichedEventWriter`, `EventAnalyticsReader`) and their ClickHouse implementations, schema |
-| `analytics` | Stats and samples controllers, services returning business results (`StatsSummary`, `SamplesResult`), response mappers, cursor paging |
+| `analytics` | Stats, time-series and samples controllers, services returning business results (`StatsSummary`, `Timeseries`, `SamplesResult`), response mappers, cursor paging |
 | `domain` | Immutable records and enums with no framework dependencies; constructors guard the fields processing relies on |
 | `api` | Request and response DTOs (`DlrEventRequest` carries the ingest validation rules), RFC 9457 error handling |
 | `config` | Roles, clock, role-based health defaults |
@@ -220,8 +222,8 @@ Base URL: `http://localhost:8080`. The same API can be explored and called from 
 | Status | When |
 |---|---|
 | 201 | Ingest batch durably accepted (Kafka acknowledged every event) |
-| 200 | Stats / samples |
-| 400 | Invalid JSON, invalid event(s) (batch rejected, itemized `errors`), invalid query parameters, `from` after `to` |
+| 200 | Stats / time series / samples |
+| 400 | Invalid JSON, invalid event(s) (batch rejected, itemized `errors`), invalid query parameters, `from` after `to`, unknown `interval`, more than 1440 time-series buckets |
 | 413 | Body over 5 MB (checked before parsing) or more than 1000 events |
 | 503 | Kafka (ingest) or ClickHouse (analytics) unavailable; retry after the `Retry-After` seconds |
 
@@ -344,6 +346,34 @@ curl -s 'localhost:8080/v1/stats/summary?configId=14227&from=2026-05-20T00:00:00
 - `topAttackers` and `topTargetedPaths` hold the top 10 by event count, ties broken by IP or path ascending, so results are stable.
 - Averages are rounded to one decimal.
 
+### `GET /v1/stats/timeseries?interval=&configId=&from=&to=`
+Event counts per time bucket, for a line chart. `interval` is required: `1m`, `5m` or `1h`. The other parameters are optional:
+- `configId`: without it, counts cover all configurations.
+- `to`: defaults to now.
+- `from`: defaults to `to` minus 1 hour (`1m`), 24 hours (`5m`) or 7 days (`1h`).
+
+`from`/`to` are inclusive ISO-8601 instants and filter on the event `timestamp`, like the summary.
+
+```bash
+curl -s 'localhost:8080/v1/stats/timeseries?configId=14227&from=2026-05-20T10:00:00Z&to=2026-05-20T10:02:00Z&interval=1m'
+```
+```json
+{
+  "configId": 14227,
+  "timeRange": {"from": "2026-05-20T10:00:00Z", "to": "2026-05-20T10:02:00Z"},
+  "interval": "1m",
+  "buckets": [
+    {"start": "2026-05-20T10:00:00Z", "count": 12},
+    {"start": "2026-05-20T10:01:00Z", "count": 5},
+    {"start": "2026-05-20T10:02:00Z", "count": 0}
+  ]
+}
+```
+- Buckets are UTC and aligned to multiples of the interval: the first starts at `from` rounded down, the last at `to` rounded down. The first and last buckets can therefore be only partly inside the range.
+- Every bucket is listed, oldest first; buckets without events have `count` 0.
+- `timeRange` is the range actually covered, with the defaults filled in.
+- At most 1440 buckets per request (24 hours at `1m`, 5 days at `5m`, 60 days at `1h`); a larger range is rejected with 400, never cut short.
+
 ### `GET /v1/events/samples?configId=&from=&to=&category=&action=&limit=&offset=`
 Returns individual enriched events, newest first (event `timestamp` descending, ties by `eventId` descending). All filters are optional; `limit` defaults to 20 (1–100) and `offset` to 0. Each event has the original DLR fields plus `receivedAt`, `attackType` and `threatScore`.
 
@@ -462,7 +492,7 @@ This is a deployment setting (`MINIWSA_ANALYTICS_ACCURACY`), not an API paramete
 |---|---|---|
 | `ingest` | `POST /v1/events/ingest`, size filter, Kafka producer | Kafka |
 | `processing` | Kafka listener, enrichment, Redis window, ClickHouse writer, dead-letter publisher | Kafka, Redis, ClickHouse |
-| `analytics` | Stats and samples endpoints | ClickHouse |
+| `analytics` | Stats, time-series and samples endpoints | ClickHouse |
 
 The default compose runs one container with the roles in `APP_ROLES` (`.env`, default all three). Set it from the shell to run a subset:
 ```bash
@@ -629,7 +659,7 @@ To override `.env` without editing it, export the variable in your shell (shell 
 | `miniwsa.analytics.query-timeout` | 30s | ClickHouse `max_execution_time` per query |
 | `spring.kafka.*`, `spring.datasource.*`, `spring.data.redis.*` | see file | Connections; env shortcuts `KAFKA_BOOTSTRAP_SERVERS`, `CLICKHOUSE_HOST/PORT/DB/USER/PASSWORD`, `REDIS_HOST/PORT` |
 
-Deliberately **not** configurable, because they are the assignment's contract: score points, the +15 bonuses, the `/admin` and `/login` markers, the 100 cap, attack-type labels, the samples limit (default 20, max 100), and the top-10 size.
+Deliberately **not** configurable, because they are the assignment's contract: score points, the +15 bonuses, the `/admin` and `/login` markers, the 100 cap, attack-type labels, the samples limit (default 20, max 100), and the top-10 size. The time-series intervals, default windows and 1440-bucket cap are fixed too: they are part of the API contract that charts rely on.
 
 ## Design decisions and trade-offs
 
@@ -682,6 +712,7 @@ An in-JVM "known offender" cache from the original design was dropped. Being an 
 
 ### Queries
 - **Stats** run three queries in parallel: the `GROUPING SETS` counts, top attackers and top paths.
+- **Time series** run one `GROUP BY` over the bucket start (epoch millis rounded down with `positiveModulo`), filtered on the raw `timestamp` so partition pruning and the primary key apply. ClickHouse returns only non-empty buckets; the service zero-fills the rest. The 1440-bucket cap is checked before querying and also bounds how much data one request can scan.
 - **Samples** run the page query and the `count()` in parallel.
 - **The ClickHouse specifics stay in the `storage` package:** `FINAL`, query settings, and the UTC conversion of time bounds.
 

@@ -5,11 +5,13 @@ import io.github.maoz3000.miniwsa.domain.DlrEvent;
 import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
 import io.github.maoz3000.miniwsa.domain.RuleCategory;
 import io.github.maoz3000.miniwsa.domain.query.AttackerStats;
+import io.github.maoz3000.miniwsa.domain.query.BucketCount;
 import io.github.maoz3000.miniwsa.domain.query.CategoryStats;
 import io.github.maoz3000.miniwsa.domain.query.EventFilter;
 import io.github.maoz3000.miniwsa.domain.query.PageRequest;
 import io.github.maoz3000.miniwsa.domain.query.PathStats;
 import io.github.maoz3000.miniwsa.domain.query.SummaryCounts;
+import io.github.maoz3000.miniwsa.domain.query.TimeInterval;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -138,6 +140,40 @@ class ClickHouseEventAnalyticsReaderTest {
 
         assertThat(reader.findSamples(EventFilter.builder().configId(4L).build(), new PageRequest(1, 0)))
                 .containsExactly(minimal);
+    }
+
+    @Test
+    void countsEventsPerAlignedBucketOldestFirst() {
+        writer.saveAll(List.of(
+                event("b1", 5L, "10.0.0.1", "/x", RuleCategory.DOS, Action.DENY, T0.plusSeconds(59).plusMillis(999), 50),
+                event("b2", 5L, "10.0.0.1", "/x", RuleCategory.DOS, Action.DENY, T0.plusSeconds(60), 50),
+                event("b3", 5L, "10.0.0.1", "/x", RuleCategory.DOS, Action.DENY, T0.plusSeconds(3 * 60 + 30), 50),
+                event("b4", 5L, "10.0.0.1", "/x", RuleCategory.DOS, Action.DENY, T0.plusSeconds(3600), 50),
+                event("b5", 6L, "10.0.0.1", "/x", RuleCategory.DOS, Action.DENY, T0.plusSeconds(60), 50)));
+        EventFilter config5 = EventFilter.builder().configId(5L).build();
+
+        assertThat(reader.countsPerBucket(config5, TimeInterval.ONE_MINUTE)).containsExactly(
+                new BucketCount(T0, 1),
+                new BucketCount(T0.plusSeconds(60), 1),
+                new BucketCount(T0.plusSeconds(3 * 60), 1),
+                new BucketCount(T0.plusSeconds(3600), 1));
+        assertThat(reader.countsPerBucket(config5, TimeInterval.FIVE_MINUTES)).containsExactly(
+                new BucketCount(T0, 3), new BucketCount(T0.plusSeconds(3600), 1));
+        assertThat(reader.countsPerBucket(config5, TimeInterval.ONE_HOUR)).containsExactly(
+                new BucketCount(T0, 3), new BucketCount(T0.plusSeconds(3600), 1));
+    }
+
+    @Test
+    void bucketsHonourInclusiveTimeBounds() {
+        EventFilter filter = EventFilter.builder().configId(1L).from(T0.plusSeconds(1)).to(T0.plusSeconds(3)).build();
+
+        assertThat(reader.countsPerBucket(filter, TimeInterval.ONE_MINUTE)).containsExactly(new BucketCount(T0, 3));
+    }
+
+    @Test
+    void noMatchingEventsGiveNoBuckets() {
+        assertThat(reader.countsPerBucket(EventFilter.builder().configId(999L).build(), TimeInterval.ONE_HOUR))
+                .isEmpty();
     }
 
     @Test
