@@ -2,8 +2,9 @@ package io.github.maoz3000.miniwsa.ingest;
 
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;
-import io.github.maoz3000.miniwsa.domain.DlrEvent;
-import io.github.maoz3000.miniwsa.domain.IngestedEvent;
+import io.github.maoz3000.miniwsa.domain.event.DlrEvent;
+import io.github.maoz3000.miniwsa.domain.event.IngestedEvent;
+import io.github.maoz3000.miniwsa.ingest.publishing.EventPublisher;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -27,13 +28,13 @@ public class IngestService {
         this.clock = clock;
     }
 
-    public IngestResult ingest(List<DlrEvent> events) {
+    public List<IngestedEvent> ingest(List<DlrEvent> events) {
         Instant receivedAt = clock.instant();
         List<IngestedEvent> ingested = events.stream()
                 .map(event -> new IngestedEvent(event, receivedAt))
                 .toList();
         publisher.publish(ingested);
         log.debug("Accepted {} events received at {}", ingested.size(), receivedAt);
-        return new IngestResult(ingested.size(), receivedAt);
+        return ingested;
     }
 }

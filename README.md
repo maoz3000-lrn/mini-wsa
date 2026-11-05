@@ -39,7 +39,7 @@ curl -s 'localhost:8080/v1/events/samples?category=INJECTION&limit=5' | jq
 
 | Page | URL |
 |---|---|
-| Swagger UI: interactive API docs with "Try it out" | http://localhost:8080/swagger-ui.html |
+| Swagger UI: interactive API docs with "Try it out" | http://localhost:8080/ (redirects to `/swagger-ui.html`) |
 | OpenAPI spec (JSON) | http://localhost:8080/v3/api-docs |
 | Kafka UI: topics, messages with headers, consumer lag | http://localhost:8090 |
 | CH-UI: ClickHouse table browser and SQL editor (log in as `miniwsa` / `miniwsa`) | http://localhost:3488 |
@@ -217,7 +217,7 @@ docker compose up -d --build --wait                   # kafka-init recreates the
 
 ## API reference
 
-Base URL: `http://localhost:8080`. The same API can be explored and called from **Swagger UI at http://localhost:8080/swagger-ui.html** (spec: `/v3/api-docs`). Each instance documents only the endpoints of its roles. In the split layout the gateway does not route the docs, so browse them in the default single-container layout. Errors use [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details (`application/problem+json`).
+Base URL: `http://localhost:8080`. The same API can be explored and called from **Swagger UI at http://localhost:8080/** (redirects to `/swagger-ui.html`; spec: `/v3/api-docs`). Each instance documents only the endpoints of its roles. In the split layout the gateway does not route the docs, so browse them in the default single-container layout. Errors use [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details (`application/problem+json`).
 
 | Status | When |
 |---|---|

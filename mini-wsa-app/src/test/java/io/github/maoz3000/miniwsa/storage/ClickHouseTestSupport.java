@@ -10,7 +10,7 @@ import javax.sql.DataSource;
 /**
  * One ClickHouse container per test JVM for repository tests, with the schema applied.
  */
-final class ClickHouseTestSupport {
+public final class ClickHouseTestSupport {
 
     private static final ClickHouseContainer CLICKHOUSE = ContainersConfig.clickHouseContainer();
     private static DataSource dataSource;
@@ -18,7 +18,7 @@ final class ClickHouseTestSupport {
     private ClickHouseTestSupport() {
     }
 
-    static synchronized DataSource dataSource() {
+    public static synchronized DataSource dataSource() {
         if (dataSource == null) {
             CLICKHOUSE.start();
             dataSource = new SimpleDriverDataSource(new com.clickhouse.jdbc.Driver(),
@@ -28,7 +28,7 @@ final class ClickHouseTestSupport {
         return dataSource;
     }
 
-    static JdbcTemplate truncatedTable() {
+    public static JdbcTemplate truncatedTable() {
         JdbcTemplate jdbc = new JdbcTemplate(dataSource());
         jdbc.execute("TRUNCATE TABLE dlr_events");
         return jdbc;

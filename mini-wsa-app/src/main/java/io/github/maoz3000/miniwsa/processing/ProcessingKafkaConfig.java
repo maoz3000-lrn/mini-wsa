@@ -3,6 +3,8 @@ package io.github.maoz3000.miniwsa.processing;
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.KafkaTopicsProperties;
 import io.github.maoz3000.miniwsa.config.Role;
+import io.github.maoz3000.miniwsa.processing.deadletter.DeadLetterSink;
+import io.github.maoz3000.miniwsa.processing.deadletter.KafkaDeadLetterSink;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.springframework.context.annotation.Bean;

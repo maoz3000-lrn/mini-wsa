@@ -1,6 +1,7 @@
 package io.github.maoz3000.miniwsa.processing;
 
-import io.github.maoz3000.miniwsa.domain.IngestedEvent;
+import io.github.maoz3000.miniwsa.domain.event.IngestedEvent;
+import io.github.maoz3000.miniwsa.processing.deadletter.DeadLetterReason;
 
 /**
  * An event processing could not store, and why.

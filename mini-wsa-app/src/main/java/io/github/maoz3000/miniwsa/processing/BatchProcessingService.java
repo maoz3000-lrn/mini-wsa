@@ -2,11 +2,13 @@ package io.github.maoz3000.miniwsa.processing;
 
 import io.github.maoz3000.miniwsa.config.ConditionalOnRole;
 import io.github.maoz3000.miniwsa.config.Role;
-import io.github.maoz3000.miniwsa.domain.EnrichedEvent;
-import io.github.maoz3000.miniwsa.domain.IngestedEvent;
+import io.github.maoz3000.miniwsa.domain.event.EnrichedEvent;
+import io.github.maoz3000.miniwsa.domain.event.IngestedEvent;
 import io.github.maoz3000.miniwsa.domain.error.PermanentStorageException;
-import io.github.maoz3000.miniwsa.storage.EnrichedEventWriter;
-import io.github.maoz3000.miniwsa.storage.SaveResult;
+import io.github.maoz3000.miniwsa.storage.writer.EnrichedEventWriter;
+import io.github.maoz3000.miniwsa.storage.writer.SaveResult;
+import io.github.maoz3000.miniwsa.processing.deadletter.DeadLetterReason;
+import io.github.maoz3000.miniwsa.processing.enrichment.EnrichmentService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 

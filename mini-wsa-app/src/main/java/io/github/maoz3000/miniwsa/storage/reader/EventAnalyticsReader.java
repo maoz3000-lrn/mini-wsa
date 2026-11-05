@@ -1,0 +1,42 @@
+package io.github.maoz3000.miniwsa.storage.reader;
+
+import io.github.maoz3000.miniwsa.domain.event.EnrichedEvent;
+import io.github.maoz3000.miniwsa.domain.error.TransientStorageException;
+import io.github.maoz3000.miniwsa.domain.analytics.summary.AttackerStats;
+import io.github.maoz3000.miniwsa.domain.analytics.timeseries.BucketCount;
+import io.github.maoz3000.miniwsa.domain.analytics.EventFilter;
+import io.github.maoz3000.miniwsa.domain.analytics.samples.PageRequest;
+import io.github.maoz3000.miniwsa.domain.analytics.summary.PathStats;
+import io.github.maoz3000.miniwsa.domain.analytics.summary.SummaryCounts;
+import io.github.maoz3000.miniwsa.domain.analytics.timeseries.TimeInterval;
+
+import java.util.List;
+
+/**
+ * Read-only analytics over stored events. Every method honours all non-null constraints of the filter.
+ *
+ * @throws TransientStorageException from any method when the store cannot answer right now
+ */
+public interface EventAnalyticsReader {
+
+    /** Total, per-category and per-action counts from a single read, so they are mutually consistent. */
+    SummaryCounts summaryCounts(EventFilter filter);
+
+    /** Client IPs by event count desc (ties by IP asc), at most {@code limit}. */
+    List<AttackerStats> topAttackers(EventFilter filter, int limit);
+
+    /** Paths by event count desc (ties by path asc), at most {@code limit}. */
+    List<PathStats> topTargetedPaths(EventFilter filter, int limit);
+
+    /** Matching events, newest first (event timestamp desc, ties by eventId desc). */
+    List<EnrichedEvent> findSamples(EventFilter filter, PageRequest page);
+
+    /** Number of matching events. */
+    long countEvents(EventFilter filter);
+
+    /**
+     * Event counts per UTC bucket of the interval, aligned to multiples of it since the epoch, oldest first.
+     * Only buckets holding at least one matching event are returned.
+     */
+    List<BucketCount> countsPerBucket(EventFilter filter, TimeInterval interval);
+}

@@ -1,14 +1,14 @@
 package io.github.maoz3000.miniwsa;
 
-import io.github.maoz3000.miniwsa.api.DlrEventResponse;
-import io.github.maoz3000.miniwsa.api.SampleEventResponse;
-import io.github.maoz3000.miniwsa.api.SamplesPage;
-import io.github.maoz3000.miniwsa.api.StatsSummaryResponse;
-import io.github.maoz3000.miniwsa.api.TimeseriesResponse;
-import io.github.maoz3000.miniwsa.domain.Action;
-import io.github.maoz3000.miniwsa.domain.DlrEvent;
-import io.github.maoz3000.miniwsa.domain.RuleCategory;
-import io.github.maoz3000.miniwsa.domain.RuleSeverity;
+import io.github.maoz3000.miniwsa.analytics.samples.DlrEventResponse;
+import io.github.maoz3000.miniwsa.analytics.samples.SampleEventResponse;
+import io.github.maoz3000.miniwsa.analytics.samples.SamplesPageResponse;
+import io.github.maoz3000.miniwsa.analytics.summary.StatsSummaryResponse;
+import io.github.maoz3000.miniwsa.analytics.timeseries.TimeseriesResponse;
+import io.github.maoz3000.miniwsa.domain.event.Action;
+import io.github.maoz3000.miniwsa.domain.event.DlrEvent;
+import io.github.maoz3000.miniwsa.domain.event.RuleCategory;
+import io.github.maoz3000.miniwsa.domain.event.RuleSeverity;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
@@ -83,7 +83,7 @@ class EndToEndIntegrationTest {
                 new TimeseriesResponse.Bucket(T0.plusSeconds(60), 5),
                 new TimeseriesResponse.Bucket(T0.plusSeconds(120), 0));
 
-        SamplesPage bots = samples("/v1/events/samples?configId=" + configId + "&category=BOT").page();
+        SamplesPageResponse bots = samples("/v1/events/samples?configId=" + configId + "&category=BOT").page();
         assertThat(bots.total()).isEqualTo(5);
         assertThat(bots.events()).extracting(e -> e.event().eventId().substring(e.event().eventId().indexOf('-') + 1))
                 .containsExactly("bot-4", "bot-3", "bot-2", "bot-1", "bot-0");
@@ -140,10 +140,10 @@ class EndToEndIntegrationTest {
     }
 
     private Page samples(String uri) {
-        EntityExchangeResult<SamplesPage> result = client.get().uri(URI.create(uri).getRawPath() + "?"
+        EntityExchangeResult<SamplesPageResponse> result = client.get().uri(URI.create(uri).getRawPath() + "?"
                         + URI.create(uri).getRawQuery()).exchange()
                 .expectStatus().isOk()
-                .expectBody(SamplesPage.class).returnResult();
+                .expectBody(SamplesPageResponse.class).returnResult();
         Optional<String> next = Optional.ofNullable(result.getResponseHeaders().getFirst(HttpHeaders.LINK))
                 .map(NEXT_LINK::matcher).filter(Matcher::matches).map(m -> URI.create(m.group(1)))
                 .map(u -> u.getRawPath() + "?" + u.getRawQuery());
@@ -164,6 +164,6 @@ class EndToEndIntegrationTest {
         return ThreadLocalRandom.current().nextLong(1_000_000, 9_000_000);
     }
 
-    private record Page(SamplesPage page, Optional<String> next) {
+    private record Page(SamplesPageResponse page, Optional<String> next) {
     }
 }

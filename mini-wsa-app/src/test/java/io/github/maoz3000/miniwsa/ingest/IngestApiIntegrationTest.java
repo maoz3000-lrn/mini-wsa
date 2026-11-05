@@ -1,8 +1,7 @@
 package io.github.maoz3000.miniwsa.ingest;
 
 import io.github.maoz3000.miniwsa.ContainersConfig;
-import io.github.maoz3000.miniwsa.api.IngestResponse;
-import io.github.maoz3000.miniwsa.domain.IngestedEvent;
+import io.github.maoz3000.miniwsa.domain.event.IngestedEvent;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
