@@ -1,6 +1,8 @@
 package io.github.maoz3000.miniwsa;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureRestTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -35,10 +37,11 @@ class OpenApiIntegrationTest {
                 .jsonPath("$.paths['/v1/events/samples'].get.responses['200'].headers.Link").exists();
     }
 
-    @Test
-    void servesSwaggerUi() {
-        // /swagger-ui.html redirects to /swagger-ui/index.html; the client follows the redirect
-        client.get().uri("/swagger-ui.html").exchange()
+    @ParameterizedTest
+    @ValueSource(strings = {"/", "/swagger-ui.html"})
+    void servesSwaggerUi(String path) {
+        // / redirects to /swagger-ui.html, which redirects to /swagger-ui/index.html; the client follows both
+        client.get().uri(path).exchange()
                 .expectStatus().isOk()
                 .expectBody(String.class).value(html -> assertThat(html).contains("swagger-ui"));
     }
