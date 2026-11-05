@@ -30,10 +30,12 @@ class IngestServiceTest {
         DlrEvent first = validEvent();
         DlrEvent second = validEvent().toBuilder().eventId("evt-2").build();
 
-        IngestResult result = service.ingest(List.of(first, second));
+        List<IngestedEvent> expected = List.of(new IngestedEvent(first, NOW), new IngestedEvent(second, NOW));
 
-        assertThat(result).isEqualTo(new IngestResult(2, NOW));
-        verify(publisher).publish(List.of(new IngestedEvent(first, NOW), new IngestedEvent(second, NOW)));
+        List<IngestedEvent> result = service.ingest(List.of(first, second));
+
+        assertThat(result).isEqualTo(expected);
+        verify(publisher).publish(expected);
     }
 
     @Test

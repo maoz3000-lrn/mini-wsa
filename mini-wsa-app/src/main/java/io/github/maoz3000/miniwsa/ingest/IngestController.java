@@ -58,7 +58,6 @@ public class IngestController {
     @PostMapping(path = ApiPaths.INGEST, consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public IngestResponse ingest(@RequestBody @Parameter(hidden = true) JsonNode body) {
-        IngestResult result = ingestService.ingest(validator.validate(parser.toBatch(body)));
-        return new IngestResponse(result.accepted(), result.receivedAt());
+        return IngestResponse.from(ingestService.ingest(validator.validate(parser.toBatch(body))));
     }
 }

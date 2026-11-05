@@ -2,6 +2,7 @@ package io.github.maoz3000.miniwsa.ingest;
 
 import io.github.maoz3000.miniwsa.api.ApiProperties;
 import io.github.maoz3000.miniwsa.config.ClockConfig;
+import io.github.maoz3000.miniwsa.domain.event.IngestedEvent;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -40,7 +41,7 @@ class IngestControllerTest {
 
     @Test
     void returns201WithAcceptedCount() throws Exception {
-        when(ingestService.ingest(List.of(validEvent()))).thenReturn(new IngestResult(1, EVENT_TIME));
+        when(ingestService.ingest(List.of(validEvent()))).thenReturn(List.of(new IngestedEvent(validEvent(), EVENT_TIME)));
 
         mockMvc.perform(ingest(validEventJson()))
                 .andExpect(status().isCreated())

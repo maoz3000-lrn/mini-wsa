@@ -27,13 +27,13 @@ public class IngestService {
         this.clock = clock;
     }
 
-    public IngestResult ingest(List<DlrEvent> events) {
+    public List<IngestedEvent> ingest(List<DlrEvent> events) {
         Instant receivedAt = clock.instant();
         List<IngestedEvent> ingested = events.stream()
                 .map(event -> new IngestedEvent(event, receivedAt))
                 .toList();
         publisher.publish(ingested);
         log.debug("Accepted {} events received at {}", ingested.size(), receivedAt);
-        return new IngestResult(ingested.size(), receivedAt);
+        return ingested;
     }
 }
